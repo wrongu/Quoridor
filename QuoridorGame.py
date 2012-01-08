@@ -53,15 +53,15 @@ class QuoridorGame:
         #   to check here. They return true if successful
         w_valid = self.turn_is_valid(turn_string, type="wall");
         m_valid = self.turn_is_valid(turn_string, type="move");
-        print "\twall valid?", w_valid,"\n\tmove valid?", m_valid
+        #print "\twall valid?", w_valid,"\n\tmove valid?", m_valid
         if w_valid:
-            print "\twalled successfully"
+            #print "\twalled successfully"
             self.add_wall(turn_string);
         elif m_valid:
-            print "\tmoved successfully"
+            #print "\tmoved successfully"
             self.do_move(turn_string);
         else:
-            print "execution failed"
+            #print "execution failed"
             return False;
         self.next_turn();
         self.history.append(turn_string);
@@ -115,24 +115,24 @@ class QuoridorGame:
         # in both, Row is a number 1-9 and column is a letter a-i
         # length 5: wall
         try:
-            if type is "wall" and len(turn_string) == 5:
-                print "\tprocessing turn: wall"
+            if  (type is "wall" or type is "") and len(turn_string) == 5:
+                #print "\tprocessing turn: wall"
                 wall_type = turn_string[0];
                 # parse RRcc as row and columns
                 row_up, col_left = notation_to_point(turn_string[1]+turn_string[3]);
                 row_down, col_right = notation_to_point(turn_string[2]+turn_string[4]);
                 # not valid if not representing a 2x2 block
                 if row_down-row_up is not 1 or col_right-col_left is not 1:
-                    print "wall coordinates not 2x2"
+                    #print "wall coordinates not 2x2"
                     return False;
                 # not valid if out of bounds
                 if not 1 <= row_up < 9 or not 1 <= col_left < 9:
-                    print "wall out of bounds"
+                    #print "wall out of bounds"
                     return False;
                 # if perpendicular wall exists in same place, not valid
                 perp_char = 'H' if wall_type is 'V' else 'V';
                 if (perp_char + turn_string[1:] in self.walls):
-                    print "wall crosses another wall"
+                    #print "wall crosses another wall"
                     return False;
                 # not valid if overlaps with any other walls of same orientation
                 if wall_type is 'H':
@@ -141,7 +141,7 @@ class QuoridorGame:
                     left_wall = 'H'+turn_string[1:2]+left_cols;
                     right_wall = 'H'+turn_string[1:2]+right_cols;
                     if left_wall in self.walls or right_wall in self.walls:
-                        print "horizontal wall overlap"
+                        #print "horizontal wall overlap"
                         return False;
                 if wall_type is 'V':
                     up_rows = str(row_up+1)+str(row_down+1);
@@ -149,7 +149,7 @@ class QuoridorGame:
                     up_wall = 'V'+up_rows+turn_string[3:];
                     down_wall = 'V'+down_rows+turn_string[3:];
                     if up_wall in self.walls or down_wall in self.walls:
-                        print "vertical wall overalap"
+                        #print "vertical wall overalap"
                         return False;
                 # if wall cuts off all paths for either player, not valid
                 # check by adding in wall, checking paths, then removing wall
@@ -160,7 +160,7 @@ class QuoridorGame:
                 paths = [self.get_shortest_path(start, goal) for goal in goals];
                 # if paths are all None - not valid
                 if len(paths) - paths.count(None) == 0:
-                    print "wall cuts off path: current player"
+                    #print "wall cuts off path: current player"
                     return False;
                 # Player 2
                 start = self.next_player.position;
@@ -168,14 +168,14 @@ class QuoridorGame:
                 paths = [self.get_shortest_path(start, goal) for goal in goals];
                 # if paths are all None - not valid
                 if len(paths) - paths.count(None) == 0:
-                    print "wall cuts off path: next player"
+                    #print "wall cuts off path: next player"
                     return False;
                 self.remove_wall(turn_string);
                 # if passed all the tests, it's valid!
                 return True;
                 
-            if type is "move" and len(turn_string) == 2:
-                print "\tprocessing turn: move"
+            if (type is "move" or type is "") and len(turn_string) == 2:
+                #print "\tprocessing turn: move"
                 move = notation_to_point(turn_string);
                 cur = self.current_player.position;
                 other = self.next_player.position;
@@ -209,7 +209,7 @@ class QuoridorGame:
                 return is_valid
     
         except Exception as inst:
-            print "error processing turn {0}: {1}".format(turn_string, inst);
+            #print "error processing turn {0}: {1}".format(turn_string, inst);
             return False;
         
         return False;
@@ -218,7 +218,7 @@ class QuoridorGame:
         for i in range (0, len(history_list)):
             # execute. if not successful, break.
             current_turn = history_list[i];
-            print "turn", i;
+            #print "turn", i;
             if not self.execute_turn(current_turn):
                 print "on turn", i, "invalid move:", current_turn;
                 break;
@@ -226,7 +226,7 @@ class QuoridorGame:
             # check win
             if self.current_player.position in self.current_player.goal_positions:
                 print "Winner!", self.current_player.name;
-        print "Replay Done"
+        #print "Replay Done"
         
 
 # Helper Functions
