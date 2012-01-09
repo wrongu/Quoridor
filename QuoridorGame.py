@@ -30,6 +30,9 @@ class QuoridorGame:
     history: a list of turn strings
     walls: list of walls in official notation (list of strings)
     2 players
+        -name
+        -walls
+        -position
     graph of open paths (nodes are squares and edges are open paths)
     """
     def __init__(self, name1="", name2=""):
@@ -108,6 +111,19 @@ class QuoridorGame:
     def get_shortest_path(self, start, end):
         return self.graph.findPathBreadthFirst(start, end);
 
+    def path_exists(self, player_num=1):
+        player = self.current_player if player_num == 1 else self.next_player;
+        start = player.position;
+        goals = player.goal_positions;
+        # check if path exists: first check direction for DFS heuristic
+        (goalr, goalc) = goals[0];
+        if goalr == 1:
+            sortfunc = SpecialGraphs.graph_net_sortfunc_row_dec;
+        else:
+            sortfunc = SpecialGraphs.graph_net_sortfunc_row_inc;
+        
+        return self.graph.findPathDepthFirst(start, goals, sortfunc) is not None;
+
     def turn_is_valid(self, turn_string, type=""):
         # Wall: notated with H or V for horz/vert, then adjacent 2 rows and
         #   2 columns
@@ -155,19 +171,11 @@ class QuoridorGame:
                 # check by adding in wall, checking paths, then removing wall
                 self.add_wall(turn_string);
                 # Player 1
-                start = self.current_player.position;
-                goals = self.current_player.goal_positions;
-                paths = [self.get_shortest_path(start, goal) for goal in goals];
-                # if paths are all None - not valid
-                if len(paths) - paths.count(None) == 0:
+                if not self.path_exists(self.current_player):
                     #print "wall cuts off path: current player"
                     return False;
                 # Player 2
-                start = self.next_player.position;
-                goals = self.next_player.goal_positions;
-                paths = [self.get_shortest_path(start, goal) for goal in goals];
-                # if paths are all None - not valid
-                if len(paths) - paths.count(None) == 0:
+                if not self.path_exists(self.next_player):
                     #print "wall cuts off path: next player"
                     return False;
                 self.remove_wall(turn_string);

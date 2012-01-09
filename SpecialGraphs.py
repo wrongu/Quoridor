@@ -18,3 +18,20 @@ def GraphNet(M, N):
             for a in adjs:
                 G.addEdge((node, a));
     return G;
+
+def graph_net_sortfunc_row_inc(node):
+    (r, c) = node;
+    return -r;
+
+def graph_net_sortfunc_row_dec(node):
+    (r, c) = node;
+    return r;
+
+def graph_net_sortfunc_col_inc(node):
+    (r, c) = node;
+    return -c;
+
+def graph_net_sortfunc_col_dec(node):
+    (r, c) = node;
+    return c;
+    

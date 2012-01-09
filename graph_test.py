@@ -25,3 +25,15 @@ pprint(G.graph_dict);
 print ""
 G = SpecialGraphs.GraphNet(2,3);
 pprint(G.graph_dict);
+
+print "\n\nDFS test: 9x9 net"
+G = SpecialGraphs.GraphNet(9,9);
+start = (5,5);
+end1 = (1,5);
+end2 = (9,5);
+p1 = G.findPathDepthFirst(start, [end1], SpecialGraphs.graph_net_sortfunc_row_inc);
+p2 = G.findPathDepthFirst(start, [end2], SpecialGraphs.graph_net_sortfunc_row_inc);
+pprint(p1);
+pprint(p2)
+print "first path length:", len(p1);
+print "second path length:", len(p2);

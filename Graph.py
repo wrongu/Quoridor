@@ -124,6 +124,57 @@ class Graph:
         except:
             return False;
     
+    # depth-first search
+    # given start node and list of goal nodes (reaching any considered 'success')
+    # sortfunc - optional parameter. a function that maps a node to a number such that a list of nodes is sortable by this mapping.
+    def findPathDepthFirst(self, startnode, goalnodes, sortfunc=None):
+        # first check if both nodes exist
+        if not self.hasNode(startnode):
+            raise NodeNotExistError(startnode);
+        for goalnode in goalnodes:
+            if not self.hasNode(goalnode):
+                raise NodeNotExistError(goalnode);
+        
+        closed_nodes = [startnode];
+        cur_node = startnode;
+        path = [startnode];
+        success = cur_node in goalnodes;
+        while not success:  
+#            print "DFS cur =", cur_node;
+            # select next
+            next_nodes = self.get_adj_nodes(cur_node);
+            next_nodes = [node for node in next_nodes if node not in closed_nodes+path];
+            # if no options, back up and add current node to list of closed
+            if len(next_nodes) == 0:
+                path.pop();
+                closed_nodes.append(cur_node);
+            else:
+                # if a sortfunc is given, select node with smallest dist to goalnodes
+                if sortfunc:
+                    min_node = next_nodes[0];
+                    min_dist = sortfunc(min_node);
+                    for node in next_nodes[1:]:
+#                        print "\tmin_node:", min_node
+                        dist = sortfunc(node);
+                        if dist < min_dist:
+                            min_node = node;
+                            min_dist = dist;
+                    next_node = min_node;
+                else:
+                    next_node = next_nodes[0];
+                # update path
+                path.append(next_node);
+                # update current node
+                cur_node = next_node;
+                # check success
+                success = cur_node in goalnodes;
+        
+        if success:
+            return path;
+        else:
+            return none;
+                
+    
     # breadth-first search: use Queue of next items
     # returns path as list of nodes
     def findPathBreadthFirst(self, startnode, goalnode):
