@@ -27,5 +27,13 @@ def get_all_legal_walls(game_state, player_cur_net=1):
 def filter_legal_turns(game_state, turns):
     return filter(lambda t: game_state.turn_is_valid(t), turns);
 
-def state_score_naive(game_state):
-    pass;
+def state_score_naive(game_state, weight_to_paths = 0.5);
+    """return naive score for game state based on # of walls and path lengths only.
+    
+    (diff in # of walls) * (1-weight) + (diff in path lengths) * weight
+    
+    computes for current_player
+    """
+    walls_diff = (game_state.current_player.num_walls - game_state.next_player.num_walls);
+    paths_diff = len(other) - len(self)
+    
