@@ -59,8 +59,8 @@ class QuoridorGame:
         else:
             raise QuoridorException("invalid number of players: {0}".format(num_players))
         self.current_player_num = 1
-        self.current_player = players[0]
-        self.other_players = players[1:]
+        self.current_player = self.players[0]
+        self.other_players = self.players[1:]
         # special graph for grid
         self.graph = SpecialGraphs.GraphNet(9,9)
         # initially no walls
@@ -186,7 +186,7 @@ class QuoridorGame:
     def wall_is_valid(self, wall_string):
         try:
             #print "\tprocessing turn: wall"
-            wall_type = turn_string[0]
+            wall_type = wall_string[0]
             
             edge1, edge2 = wall_string_to_edges(wall_string)
             (r1, c1), (r2, c2) = edge1, edge2
@@ -194,8 +194,8 @@ class QuoridorGame:
             
             # not valid if not representing a 2x2 block
             perp_char = 'H' if wall_type is 'V' else 'V'
-            if (perp_char + turn_string[1:] in self.walls):
-                #print "wall crosses another wall"
+            if (perp_char + wall_string[1:] in self.walls):
+                # print "wall crosses another wall"
                 return False
                 
             # checking if both edges are in graph (can be removed by placing wall)
@@ -203,19 +203,21 @@ class QuoridorGame:
             #   - wall within bounds of board
             #   - wall does not occupy same space as previous wall
             if not (self.graph.hasEdge(edge1) and self.graph.hasEdge(edge2)):
+                # print "wall overlap or out of bounds"
                 return False
             
             # if wall cuts off all paths for either player, not valid
             # check by adding in wall, checking paths, then removing wall
-            self.add_wall(turn_string)
+            self.add_wall(wall_string)
             paths = [self.path_exists(i) for i in range(len(self.players))]
-            self.remove_wall(turn_string)
+            self.remove_wall(wall_string)
             
-            if paths != [True]*len(self.players)):
+            if paths != [True]*len(self.players):
                 return False
             # if passed all the tests, it's valid!
             return True
-        except:
+        except Exception, e:
+            print "exceptional problems:", str(e)
             return False
 
     def replay(self, history_list):
@@ -234,9 +236,10 @@ class QuoridorGame:
         
 
 # Helper Functions
-def point_to_notation(row, column):
+def point_to_notation(pt):
     # both row and column are in [1,9]. rows denoted by this number,
     #   but columns denoted by letters 'a' through 'i'
+    row, column = pt
     return "{0}{1}".format(row, col_to_letter(column))
 
 def notation_to_point(point_str):

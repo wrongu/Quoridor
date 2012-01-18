@@ -3,31 +3,26 @@
 
 import QuoridorGame;
 
-def get_all_legal_moves(game_state, player_cur_next=1):
+def get_all_legal_moves(game_state, player_num):
     """return all legal moves for the given player.
+    
+    built-in to player class =)
+    """
+    player = game_state.get_player_by_num(player_num)
+    if not player.available_points:
+        game_state.update_available_points()
+    player = game_state.get_player_by_num(player_num)
 
-    if player is 1, uses current player
-    if player is 2, uses next player
-    (not the greatest system, I know..."""
-    player = game_state.current_player if player_cur_next == 1 else game_state.next_player;
-    player_r, player_c = player.position;
-    # depending on wall/other player situation, available moves could be any of the 8 adjacent spaces, plus the 4 that are 2 spaces away in NSEW
-    adjacent_squares = [(r+player_r, c+player_c) for r in range(-1, 2) for c in range(-1,2)];
-    # remove the center square (i.e. current position)
-    del adjacent_squares[4];
-    two_aways = [(player_r, player_c+2), (player_r, player_c-2), (player_r+2, player_c),  (player_r-2, player_c)];
-    all_moves = adjacent_squares + two_aways;
-    possible_moves_str = filter_legal_turns(game_state, [QuoridorGame.point_to_notation(r, c) for (r, c) in all_moves]);
-    return possible_moves_str;
+    return [QuoridorGame.point_to_notation(pt) for pt in player.available_points]
 
-def get_all_legal_walls(game_state, player_cur_net=1):
-    all_walls = ['H12ab', 'H12bc', 'H12cd', 'H12de', 'H12ef', 'H12fg', 'H12gh', 'H12hi', 'H23ab', 'H23bc', 'H23cd', 'H23de', 'H23ef', 'H23fg', 'H23gh', 'H23hi', 'H34ab', 'H34bc', 'H34cd', 'H34de', 'H34ef', 'H34fg', 'H34gh', 'H34hi', 'H45ab', 'H45bc', 'H45cd', 'H45de', 'H45ef', 'H45fg', 'H45gh', 'H45hi', 'H56ab', 'H56bc', 'H56cd', 'H56de', 'H56ef', 'H56fg', 'H56gh', 'H56hi', 'H67ab', 'H67bc', 'H67cd', 'H67de', 'H67ef', 'H67fg', 'H67gh', 'H67hi', 'H78ab', 'H78bc', 'H78cd', 'H78de', 'H78ef', 'H78fg', 'H78gh', 'H78hi', 'H89ab', 'H89bc', 'H89cd', 'H89de', 'H89ef', 'H89fg', 'H89gh', 'H89hi', 'V12ab', 'V12bc', 'V12cd', 'V12de', 'V12ef', 'V12fg', 'V12gh', 'V12hi', 'V23ab', 'V23bc', 'V23cd', 'V23de', 'V23ef', 'V23fg', 'V23gh', 'V23hi', 'V34ab', 'V34bc', 'V34cd', 'V34de', 'V34ef', 'V34fg', 'V34gh', 'V34hi', 'V45ab', 'V45bc', 'V45cd', 'V45de', 'V45ef', 'V45fg', 'V45gh', 'V45hi', 'V56ab', 'V56bc', 'V56cd', 'V56de', 'V56ef', 'V56fg', 'V56gh', 'V56hi', 'V67ab', 'V67bc', 'V67cd', 'V67de', 'V67ef', 'V67fg', 'V67gh', 'V67hi', 'V78ab', 'V78bc', 'V78cd', 'V78de', 'V78ef', 'V78fg', 'V78gh', 'V78hi', 'V89ab', 'V89bc', 'V89cd', 'V89de', 'V89ef', 'V89fg', 'V89gh', 'V89hi'];
+def get_all_legal_walls(game_state):
+    all_walls = ['H1a', 'H1b', 'H1c', 'H1d', 'H1e', 'H1f', 'H1g', 'H1h', 'H2a', 'H2b', 'H2c', 'H2d', 'H2e', 'H2f', 'H2g', 'H2h', 'H3a', 'H3b', 'H3c', 'H3d', 'H3e', 'H3f', 'H3g', 'H3h', 'H4a', 'H4b', 'H4c', 'H4d', 'H4e', 'H4f', 'H4g', 'H4h', 'H5a', 'H5b', 'H5c', 'H5d', 'H5e', 'H5f', 'H5g', 'H5h', 'H6a', 'H6b', 'H6c', 'H6d', 'H6e', 'H6f', 'H6g', 'H6h', 'H7a', 'H7b', 'H7c', 'H7d', 'H7e', 'H7f', 'H7g', 'H7h', 'H8a', 'H8b', 'H8c', 'H8d', 'H8e', 'H8f', 'H8g', 'H8h', 'V1a', 'V1b', 'V1c', 'V1d', 'V1e', 'V1f', 'V1g', 'V1h', 'V2a', 'V2b', 'V2c', 'V2d', 'V2e', 'V2f', 'V2g', 'V2h', 'V3a', 'V3b', 'V3c', 'V3d', 'V3e', 'V3f', 'V3g', 'V3h', 'V4a', 'V4b', 'V4c', 'V4d', 'V4e', 'V4f', 'V4g', 'V4h', 'V5a', 'V5b', 'V5c', 'V5d', 'V5e', 'V5f', 'V5g', 'V5h', 'V6a', 'V6b', 'V6c', 'V6d', 'V6e', 'V6f', 'V6g', 'V6h', 'V7a', 'V7b', 'V7c', 'V7d', 'V7e', 'V7f', 'V7g', 'V7h', 'V8a', 'V8b', 'V8c', 'V8d', 'V8e', 'V8f', 'V8g', 'V8h'];
     return filter_legal_turns(game_state, all_walls);
     
 def filter_legal_turns(game_state, turns):
     return filter(lambda t: game_state.turn_is_valid(t), turns);
 
-def state_score_naive(game_state, weight_to_paths = 0.5);
+def state_score_naive(game_state, weight_to_paths = 0.5):
     """return naive score for game state based on # of walls and path lengths only.
     
     (diff in # of walls) * (1-weight) + (diff in path lengths) * weight
@@ -35,5 +30,5 @@ def state_score_naive(game_state, weight_to_paths = 0.5);
     computes for current_player
     """
     walls_diff = (game_state.current_player.num_walls - game_state.next_player.num_walls);
-    paths_diff = len(other) - len(self)
+#    paths_diff = len(other) - len(self)
     
