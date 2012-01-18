@@ -110,6 +110,7 @@ class QuoridorGame:
         if self.current_player.position in self.current_player.goal_positions:
             return True
         else:
+            self.update_available_points()
             self.next_player()
             return False
             
