@@ -1,239 +1,235 @@
 # This module provides python classes to represent the board game Quoridor.
-# Modules for interaction, graphics, or AI done separately.
-import SpecialGraphs;
+# Modules for player, graph, interaction, graphics, or AI done separately.
 
-class QuoridorPlayer:
-    """Small Class for a Quoridor Player
-    
-    Player includes position = (row, column), goal squares, and number of walls.
-    row and column are 1 through 9
-    """
-    def __init__(self, num, name=""):
-        """num should be 1 or 2. defines which row is goal for each player"""
-        start_row = 1 if num == 1 else 9;
-        self.position = (start_row, 5);
-        # goal is other side of the board (10-9 = 1; 10-1 = 9)
-        goal_row = 10-start_row;
-        self.goal_positions = [(goal_row, i) for i in range(1,10)]
-        self.num_walls = 10;
-        self.name = name;
-    
-    def set_name(self, new_name):
-        self.name = new_name;
-    
-    def get_num_walls(self):
-        return self.num_walls;
+import SpecialGraphs
+from QuoridorPlayer import QuoridorPlayer
+import string
+
+class QuoridorException(Exception):
+    pass
 
 class QuoridorGame:
     """Abstract representation of a game of quoridor
     
     history: a list of turn strings
     walls: list of walls in official notation (list of strings)
-    2 players
+    Players
         -name
-        -walls
+        -number of walls
         -position
+        -goal positions
+        -sortfunc (orders points so direction of goal is first)
     graph of open paths (nodes are squares and edges are open paths)
-    """
-    def __init__(self, name1="", name2=""):
-        self.history = [];
-        self.current_player = QuoridorPlayer(1, name1);
-        self.next_player = QuoridorPlayer(2, name2);
-        self.graph = SpecialGraphs.GraphNet(9,9);
-        self.walls = [];
-
-    def next_turn(self):
-        cur_p_temp = self.current_player;
-        self.current_player = self.next_player;
-        self.next_player = cur_p_temp;
     
+    GRID LAYOUT:
+        There are many places in this code where a 'point' is used to denote a position on the board. The format is (row, column)
+        top/bottom refer to rows
+        left/right refer to columns
+        (1,1) is the top-left and (9,9) is the bottom-right
+
+    NOTATION:
+        While grid points are represented as a tuple of two numbers, the actual game notation uses letters for columns. 1-9 becomes a-i        
+            (1,1) --> 1a
+            (5,5) --> 5e
+            (9,9) --> 9i
+        
+        A *move* is denoted by the notated-form of the destination. Moving from 3b to 3c is just "3c"
+        A *wall* is denoted with a 3-character string. The first character is "H" or "V" for Horizontal or Vertical walls
+            -horizontal walls lie along a row and span 2 columns
+            -vertical walls lie alonga column and span 2 rows
+
+            the other 2 characters specify the point of the top-left corner of the wall (lowest row, lowest col)
+            - must be between (1,1) and (8,8), or 1a and 8h
+        
+        visuals! (I suggest viewing with a fixed-width font)
+        A  B        A || B
+        ====          ||
+        C  D        C || D
+        
+        for both of these, the point "A" will be used to denote the wall's location
+        
+    """
+    def __init__(self, num_players = 2):
+        self.history = []
+        # players: 2 or 4
+        if num_players == 2:
+            self.players = make_2_players()
+        elif num_players == 4:
+            self.players = make_4_players()
+        else:
+            raise QuoridorException("invalid number of players: {0}".format(num_players))
+        self.current_player_num = 1
+        self.current_player = players[0]
+        self.other_players = players[1:]
+        # special graph for grid
+        self.graph = SpecialGraphs.GraphNet(9,9)
+        # initially no walls
+        self.walls = []
+
+    def next_player(self):
+        """update 'current_player' variables
+        
+        includes both num and reference to current player object
+        """
+        self.current_player_num %= len(self.players)
+        self.current_player_num += 1
+        self.current_player = self.get_player_by_num(self.current_player_num)
+        self.other_players = [p for p in self.players]
+        self.other_players.remove(self.current_player)
+    
+    def get_player_by_num(self, num):
+        return self.players[num-1]
+        
     def execute_turn(self, turn_string):
         """Given turn (move or wall) in official string notation,
         
         update internal state if move is valid and swap players
+        
+        return True if player won
+        else swap players and return false
+        
+        usage:
+            while (not execute_turn):
+                pass
+            print "winner:", current_player.name
         """
-        # the following functions only apply if valid, so no need
-        #   to check here. They return true if successful
-        w_valid = self.turn_is_valid(turn_string, type="wall");
-        m_valid = self.turn_is_valid(turn_string, type="move");
+        w_valid = self.turn_is_valid(turn_string, type="wall")
+        m_valid = self.turn_is_valid(turn_string, type="move")
         #print "\twall valid?", w_valid,"\n\tmove valid?", m_valid
         if w_valid:
             #print "\twalled successfully"
-            self.add_wall(turn_string);
+            self.add_wall(turn_string)
         elif m_valid:
             #print "\tmoved successfully"
-            self.do_move(turn_string);
+            self.do_move(turn_string)
         else:
             #print "execution failed"
-            return False;
-        self.next_turn();
-        self.history.append(turn_string);
-        return True;
+            raise QuoridorException("invalid turn string given to execute_turn()")
+        self.history.append(turn_string)
+        # check win
+        if self.current_player.position in self.current_player.goal_positions:
+            return True
+        else:
+            self.next_player()
+            return False
             
     def add_wall(self, wall_string):
-        # add wall; update
-        self.walls.append(wall_string);
-        row_up, col_left = notation_to_point(wall_string[1]+wall_string[3]);
-        row_down, col_right = notation_to_point(wall_string[2]+wall_string[4]);
-        # tuples of 4 adjacent squares
-        up_left = (row_up, col_left);
-        up_right = (row_up, col_right);
-        down_left = (row_down, col_left);
-        down_right = (row_down, col_right);
-        if wall_string[0] is 'H':
-            self.graph.removeEdge((up_left, down_left), directed=False);
-            self.graph.removeEdge((up_right, down_right), directed=False);
-        elif wall_string[0] is 'V':
-            self.graph.removeEdge((up_left, up_right), directed=False);
-            self.graph.removeEdge((down_left, down_right), directed=False);
-            
+        """update game internals with given wall
+        
+        must run is_valid check first - no checks preformed here
+        """
+        self.walls.append(wall_string)
+        edge1, edge2 = wall_string_to_edges(wall_string)
+        self.graph.removeEdge(edge1, directed=False)
+        self.graph.removeEdge(edge2, directed=False)
+        
     def remove_wall(self, wall_string):
         # same as add_wall function but adds in edges where adding walls
         #   removes edges
-        self.walls.pop();
-        row_up, col_left = notation_to_point(wall_string[1]+wall_string[3]);
-        row_down, col_right = notation_to_point(wall_string[2]+wall_string[4]);
-        # tuples of 4 adjacent squares
-        up_left = (row_up, col_left);
-        up_right = (row_up, col_right);
-        down_left = (row_down, col_left);
-        down_right = (row_down, col_right);
-        if wall_string[0] is 'H':
-            self.graph.addEdge((up_left, down_left), directed=False);
-            self.graph.addEdge((up_right, down_right), directed=False);
-        elif wall_string[0] is 'V':
-            self.graph.addEdge((up_left, up_right), directed=False);
-            self.graph.addEdge((down_left, down_right), directed=False);
+        self.walls.pop()
+        edge1, edge2 = wall_string_to_edges(wall_string)
+        self.graph.addEdge(edge1, directed=False)
+        self.graph.addEdge(edge2, directed=False)
                 
     def do_move(self, move_string):
-        self.current_player.position = notation_to_point(move_string);
+        self.current_player.set_pos(notation_to_point(move_string))
 
     def get_shortest_path(self, start, end):
-        return self.graph.findPathBreadthFirst(start, end);
+        return self.graph.findPathBreadthFirst(start, end)
 
-    def path_exists(self, player_num=1):
-        player = self.current_player if player_num == 1 else self.next_player;
-        start = player.position;
-        goals = player.goal_positions;
-        # check if path exists: first check direction for DFS heuristic
-        (goalr, goalc) = goals[0];
-        if goalr == 1:
-            sortfunc = SpecialGraphs.graph_net_sortfunc_row_dec;
-        else:
-            sortfunc = SpecialGraphs.graph_net_sortfunc_row_inc;
-        
-        return self.graph.findPathDepthFirst(start, goals, sortfunc) is not None;
+    def path_exists(self, player_num):
+        player = self.get_player_by_num(player_num)
+        return self.graph.findPathDepthFirst(player.position, player.goal_positions, player.sortfunc) is not None
 
     def turn_is_valid(self, turn_string, type=""):
-        # Wall: notated with H or V for horz/vert, then adjacent 2 rows and
-        #   2 columns
-        # Move: notated by row then column.
-        # in both, Row is a number 1-9 and column is a letter a-i
-        # length 5: wall
+        if type and type == "move":
+            return self.move_is_valid(turn_string)
+        elif type and type == "wall":
+            return self.wall_is_valid(turn_string)
+        else:
+            return ((self.move_is_valid(turn_string)) or (self.wall_is_valid(turn_string)))
+            
+    def move_is_valid(self, move_string):
         try:
-            if  (type is "wall" or type is "") and len(turn_string) == 5:
-                #print "\tprocessing turn: wall"
-                wall_type = turn_string[0];
-                # parse RRcc as row and columns
-                row_up, col_left = notation_to_point(turn_string[1]+turn_string[3]);
-                row_down, col_right = notation_to_point(turn_string[2]+turn_string[4]);
-                # not valid if not representing a 2x2 block
-                if row_down-row_up is not 1 or col_right-col_left is not 1:
-                    #print "wall coordinates not 2x2"
-                    return False;
-                # not valid if out of bounds
-                if not 1 <= row_up < 9 or not 1 <= col_left < 9:
-                    #print "wall out of bounds"
-                    return False;
-                # if perpendicular wall exists in same place, not valid
-                perp_char = 'H' if wall_type is 'V' else 'V';
-                if (perp_char + turn_string[1:] in self.walls):
-                    #print "wall crosses another wall"
-                    return False;
-                # not valid if overlaps with any other walls of same orientation
-                if wall_type is 'H':
-                    left_cols = col_to_letter(col_left-1)+col_to_letter(col_right-1);
-                    right_cols = col_to_letter(col_left+1)+col_to_letter(col_right+1);
-                    left_wall = 'H'+turn_string[1:2]+left_cols;
-                    right_wall = 'H'+turn_string[1:2]+right_cols;
-                    if left_wall in self.walls or right_wall in self.walls:
-                        #print "horizontal wall overlap"
-                        return False;
-                if wall_type is 'V':
-                    up_rows = str(row_up+1)+str(row_down+1);
-                    down_rows = str(row_up-1)+str(row_down-1);
-                    up_wall = 'V'+up_rows+turn_string[3:];
-                    down_wall = 'V'+down_rows+turn_string[3:];
-                    if up_wall in self.walls or down_wall in self.walls:
-                        #print "vertical wall overalap"
-                        return False;
-                # if wall cuts off all paths for either player, not valid
-                # check by adding in wall, checking paths, then removing wall
-                self.add_wall(turn_string);
-                # Player 1
-                if not self.path_exists(self.current_player):
-                    #print "wall cuts off path: current player"
-                    return False;
-                # Player 2
-                if not self.path_exists(self.next_player):
-                    #print "wall cuts off path: next player"
-                    return False;
-                self.remove_wall(turn_string);
-                # if passed all the tests, it's valid!
-                return True;
-                
-            if (type is "move" or type is "") and len(turn_string) == 2:
-                #print "\tprocessing turn: move"
-                move = notation_to_point(turn_string);
-                cur = self.current_player.position;
-                other = self.next_player.position;
-                avail_squares = self.graph.get_adj_nodes(cur);
-                # if 2 players are adjacent with no wall between them (i.e. if path
-                #   between them is length 1), 
-                if len(self.get_shortest_path(cur, other)) == 1:
-                    avail_squares.remove(other);
-                    o_row, o_col = other;
-                    c_row, c_col = cur;
-                    # if no walls in the way, jump square is behind other player.
-                    #   jump = other + (other-cur) = 2*other - cur
-                    j_row = 2*o_row - c_row;
-                    j_col = 2*o_col - c_col;
-                    jump = (j_row, j_col);
-                    # check if no wall here
-                    if self.graph.hasEdge((other, jump)):
-                        avail_squares.insert(jump);
-                    # if wall, use spaces to side ('L' movement)
-                    else:
-                        # if horizontal from cur to other, use vertical
-                        if o_row == c_row:
-                            jumps = [(c_row+1, o_col), (c_row-1, o_col)];
-                        # vice versa
-                        if o_col == c_col:
-                            jumps = [(o_row, c_col+1), (o_row, o_col-1)];
-                        avail_squares.extend(jumps);
-                          
-                is_valid = move in avail_squares;
-                
-                return is_valid
-    
-        except Exception as inst:
-            #print "error processing turn {0}: {1}".format(turn_string, inst);
-            return False;
+            available_points = self.current_player.available_points
+            if not available_points:
+                self.update_available_points()
+            return notation_to_point(move_string) in self.current_payer.available_points
+        except:
+            return False
         
-        return False;
-    
+    def update_available_points(self):
+        for player in self.players:
+            other_players = [p for p in self.players]
+            cur_pt = player.position
+            other_players.remove(player)
+            other_pts = [p.position for p in other_players]
+            avail_pts_temp = self.graph.get_adj_nodes(cur_pt)
+            for s in avail_pts_temp:
+                if s in other_pts:
+                    avail_pts_temp.remove(s)
+                    row_from, col_from = cur_pt
+                    row_to, col_to = s
+                    skip_pt = (2*row_to-row_from, 2*col_to-col_from)
+                    if self.graph.hasEdge((s,skip_pt)) and skip_point not in other_pts:
+                        avail_pts_temp.append(skip_pt)
+                    else:
+                        # create T points (diagonal movement)
+                        T_point_1 = (row_to + (col_to-col_from), col_to+(row_to-row_from))
+                        if self.graph.hasEdge((s, T_point_1)):
+                            avail_pts_temp.append(T_point_1)
+                        T_point_2 = (row_to + (col_from-col_to), col_to+(row_from-row_to))
+                        if self.graph.hasEdge((s, T_point_2)):
+                            avail_pts_temp.append(T_point_2)
+            player.available_points = avail_pts_temp
+
+    def wall_is_valid(self, wall_string):
+        try:
+            #print "\tprocessing turn: wall"
+            wall_type = turn_string[0]
+            
+            edge1, edge2 = wall_string_to_edges(wall_string)
+            (r1, c1), (r2, c2) = edge1, edge2
+            topleft = (min(r1,r2), min(c1,c2))
+            
+            # not valid if not representing a 2x2 block
+            perp_char = 'H' if wall_type is 'V' else 'V'
+            if (perp_char + turn_string[1:] in self.walls):
+                #print "wall crosses another wall"
+                return False
+                
+            # checking if both edges are in graph (can be removed by placing wall)
+            # this effectively checks 2 things:
+            #   - wall within bounds of board
+            #   - wall does not occupy same space as previous wall
+            if not (self.graph.hasEdge(edge1) and self.graph.hasEdge(edge2)):
+                return False
+            
+            # if wall cuts off all paths for either player, not valid
+            # check by adding in wall, checking paths, then removing wall
+            self.add_wall(turn_string)
+            paths = [self.path_exists(i) for i in range(len(self.players))]
+            self.remove_wall(turn_string)
+            
+            if paths != [True]*len(self.players)):
+                return False
+            # if passed all the tests, it's valid!
+            return True
+        except:
+            return False
+
     def replay(self, history_list):
         for i in range (0, len(history_list)):
             # execute. if not successful, break.
-            current_turn = history_list[i];
-            #print "turn", i;
+            current_turn = history_list[i]
+            #print "turn", i
             if not self.execute_turn(current_turn):
-                print "on turn", i, "invalid move:", current_turn;
-                break;
+                print "on turn", i, "invalid move:", current_turn
+                break
             # TODO: draw and pause?
             # check win
             if self.current_player.position in self.current_player.goal_positions:
-                print "Winner!", self.current_player.name;
+                print "Winner!", self.current_player.name
         #print "Replay Done"
         
 
@@ -241,16 +237,82 @@ class QuoridorGame:
 def point_to_notation(row, column):
     # both row and column are in [1,9]. rows denoted by this number,
     #   but columns denoted by letters 'a' through 'i'
-    return "{0}{1}".format(row, col_to_letter(column));
+    return "{0}{1}".format(row, col_to_letter(column))
 
 def notation_to_point(point_str):
     # must be given as "5e", for example. row int and column letter
-    row = int(point_str[0]);
-    col = letter_to_col(point_str[1]);
-    return (row, col);
+    row = int(point_str[0])
+    col = letter_to_col(string.lower(point_str[1]))
+    return (row, col)
 
 def letter_to_col(letter):
-    return ord(letter) - ord('a') + 1;
+    return ord(letter) - ord('a') + 1
 
 def col_to_letter(num):
-    return chr(ord('a') + num - 1);
+    return chr(ord('a') + num - 1)
+
+def wall_string_to_4_points(wall_string):
+    """get 4 points as tuples
+    
+    clockwise starting from 'topleft'
+    """
+    row_up, col_left = notation_to_point(wall_string[1:3])
+    row_down, col_right = row_up+1, col_left+1
+    # tuples of 4 adjacent squares
+    up_left     = (row_up,   col_left)
+    up_right    = (row_up,   col_right)
+    down_left   = (row_down, col_left)
+    down_right  = (row_down, col_right)
+    return (up_left, up_right, down_left, down_right)
+
+def wall_string_to_edges(wall_string):
+    """get tuple of 2 edges
+    
+    each edge has (point1, point2)
+    each point is (row, col)
+    *matches format in SpecialGraphs.GraphNet
+    """
+    (up_left, up_right, down_left, down_right) = wall_string_to_4_points(wall_string)
+    if wall_string[0] == "H":
+        return ((up_left, down_left), (up_right, down_right))
+    elif wall_string[0] == "V":
+        return ((up_left, up_right), (down_left, down_right))
+    else:
+        return (None,None)
+
+def make_2_players(name1="", name2=""):
+    # definitions of start and goales for 2 players, all stated explicitly
+    
+    # player 1: 
+    start1 = (1,5)
+    goals1 = [(9,1), (9,2), (9,3), (9,4), (9,5), (9,6), (9,7), (9,8), (9,9)]
+    player1 = QuoridorPlayer(start1, goals1, name=name1, sortfunc=SpecialGraphs.graph_net_sortfunc_row_inc)
+    # player 2:
+    start2 = (9,5)
+    goals2 = [(1,1), (1,2), (1,3), (1,4), (1,5), (1,6), (1,7), (1,8), (1,9)]
+    player2 = QuoridorPlayer(start2, goals2, name=name2, sortfunc=SpecialGraphs.graph_net_sortfunc_row_dec)
+    # return list of players, in order
+    return [player1, player2]
+    
+def make_4_players(name1="", name2="", name3="", name4=""):
+    # definitions of start and goales for 2 players, all stated explicitly
+    
+    # player 1: 
+    start1 = (1,5)
+    goals1 = [(9,1), (9,2), (9,3), (9,4), (9,5), (9,6), (9,7), (9,8), (9,9)]
+    player1 = QuoridorPlayer(start1, goals1, name=name1, walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_row_inc)
+    # player 2:
+    start2 = (5,9)
+    goals2 = [(1,1), (2,1), (3,1), (4,1), (5,1), (6,1), (7,1), (8,1), (9,1)]
+    player2 = QuoridorPlayer(start2, goals2, name=name2, walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_col_dec)
+    # player 3:
+    start3 = (9,5)
+    goals3 = [(1,1), (1,2), (1,3), (1,4), (1,5), (1,6), (1,7), (1,8), (1,9)]
+    player3 = QuoridorPlayer(start3, goals3, name=name3, walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_row_dec)
+    # player 4:
+    start4 = (5,1)
+    goals4 = [(1,9), (2,9), (3,9), (4,9), (5,9), (6,9), (7,9), (8,9), (9,9)]
+    player4 = QuoridorPlayer(start4, goals4, name=name4, walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_col_inc)
+    # return list of players, in order
+    return [player1, player2, player3, player4]
+    
