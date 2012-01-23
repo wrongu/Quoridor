@@ -1,9 +1,14 @@
 # This module provides python classes to represent the board game Quoridor.
 # Modules for player, graph, interaction, graphics, or AI done separately.
 
+# TODO - undo, redo
+#   use history + replay
+
 import SpecialGraphs
 from QuoridorPlayer import QuoridorPlayer
 import string
+import Quoridor_AI_API as ai
+import random
 
 class QuoridorException(Exception):
     pass
@@ -49,6 +54,9 @@ class QuoridorGame:
         for both of these, the point "A" will be used to denote the wall's location
         
     """
+    legal_moves = []
+    legal_walls = []
+    
     def __init__(self, num_players = 2):
         self.history = []
         # players: 2 or 4
@@ -58,13 +66,16 @@ class QuoridorGame:
             self.players = make_4_players()
         else:
             raise QuoridorException("invalid number of players: {0}".format(num_players))
-        self.current_player_num = 1
-        self.current_player = self.players[0]
-        self.other_players = self.players[1:]
+        cpn = random.randint(1,num_players)
+        self.current_player_num = cpn
+        self.current_player = self.players[cpn-1]
+        self.other_players = [p for p in self.players if p != self.current_player]
         # special graph for grid
         self.graph = SpecialGraphs.GraphNet(9,9)
         # initially no walls
         self.walls = []
+        self.update_legal_moves()
+        self.update_legal_walls()
 
     def next_player(self):
         """update 'current_player' variables
@@ -76,17 +87,21 @@ class QuoridorGame:
         self.current_player = self.get_player_by_num(self.current_player_num)
         self.other_players = [p for p in self.players]
         self.other_players.remove(self.current_player)
+        #print "current player:", self.current_player_num
+        #print "current player position:", self.current_player.position
     
     def get_player_by_num(self, num):
         return self.players[num-1]
         
+    # TODO - check wins..?
     def execute_turn(self, turn_string):
         """Given turn (move or wall) in official string notation,
         
         update internal state if move is valid and swap players
         
-        return True if player won
-        else swap players and return false
+        return 0 if failed
+               1 if executed
+               2 if executed and player just won!
         
         usage:
             while (not execute_turn):
@@ -104,18 +119,20 @@ class QuoridorGame:
             self.do_move(turn_string)
         else:
             #print "execution failed"
-            raise QuoridorException("invalid turn string given to execute_turn()")
-        self.history.append(turn_string)
-        # check win
+            #raise QuoridorException("invalid turn string given to execute_turn()")
+            return 0
+        # check for win
         if self.current_player.position in self.current_player.goal_positions:
-            return True
+            return 2
+        # no win - move on to next player
         else:
-            self.update_available_points()
+            self.history.append(turn_string)
             self.next_player()
-            return False
-        # TODO - before returning, keep and update list of legal moves
+            self.update_legal_moves()
+            self.update_legal_walls()
+            return 1
             
-    def add_wall(self, wall_string):
+    def add_wall(self, wall_string, playernum=None):
         """update game internals with given wall
         
         must run is_valid check first - no checks preformed here
@@ -124,6 +141,9 @@ class QuoridorGame:
         edge1, edge2 = wall_string_to_edges(wall_string)
         self.graph.removeEdge(edge1, directed=False)
         self.graph.removeEdge(edge2, directed=False)
+        if playernum:
+            p = self.get_player_by_num(playernum)
+            p.use_wall()
         
     def remove_wall(self, wall_string):
         # same as add_wall function but adds in edges where adding walls
@@ -143,14 +163,28 @@ class QuoridorGame:
         player = self.get_player_by_num(player_num)
         return self.graph.findPathDepthFirst(player.position, player.goal_positions, player.sortfunc) is not None
 
+    def update_legal_moves(self):
+        self.update_available_points()
+        legal_pts = self.current_player.available_points
+        self.legal_moves = [point_to_notation(p) for p in legal_pts]
+        #print "legal moves updated to:", self.legal_moves
+
+    def update_legal_walls(self):
+        all_w = ai.all_walls()
+        all_w = [w for w in all_w if w not in self.walls]
+        all_w = filter(lambda w: self.wall_is_valid(w), all_w)
+        self.legal_walls = all_w
+        #print "legal walls updated to:", self.legal_walls
+
     def turn_is_valid(self, turn_string, type=""):
         if type and type == "move":
-            return self.move_is_valid(turn_string)
+            return turn_string in self.legal_moves
         elif type and type == "wall":
-            return self.wall_is_valid(turn_string)
+            return turn_string in self.legal_walls
         else:
-            return ((self.move_is_valid(turn_string)) or (self.wall_is_valid(turn_string)))
-            
+            return (turn_string in (self.legal_walls + self.legal_moves))
+    
+    """
     def move_is_valid(self, move_string):
         try:
             available_points = self.current_player.available_points
@@ -159,34 +193,38 @@ class QuoridorGame:
             return notation_to_point(move_string) in self.current_payer.available_points
         except:
             return False
+    """
         
     def update_available_points(self):
-        for player in self.players:
-            other_players = [p for p in self.players]
-            cur_pt = player.position
-            other_players.remove(player)
-            other_pts = [p.position for p in other_players]
-            avail_pts_temp = self.graph.get_adj_nodes(cur_pt)
-            for s in avail_pts_temp:
-                if s in other_pts:
-                    avail_pts_temp.remove(s)
-                    row_from, col_from = cur_pt
-                    row_to, col_to = s
-                    skip_pt = (2*row_to-row_from, 2*col_to-col_from)
-                    if self.graph.hasEdge((s,skip_pt)) and skip_point not in other_pts:
-                        avail_pts_temp.append(skip_pt)
-                    else:
-                        # create T points (diagonal movement)
-                        T_point_1 = (row_to + (col_to-col_from), col_to+(row_to-row_from))
-                        if self.graph.hasEdge((s, T_point_1)):
-                            avail_pts_temp.append(T_point_1)
-                        T_point_2 = (row_to + (col_from-col_to), col_to+(row_from-row_to))
-                        if self.graph.hasEdge((s, T_point_2)):
-                            avail_pts_temp.append(T_point_2)
-            player.available_points = avail_pts_temp
+        player = self.current_player
+        other_players = self.other_players
+        cur_pt = player.position
+        other_pts = [p.position for p in other_players]
+        avail_pts_temp = self.graph.get_adj_nodes(cur_pt)
+        for s in avail_pts_temp:
+            if s in other_pts:
+                avail_pts_temp.remove(s)
+                row_from, col_from = cur_pt
+                row_to, col_to = s
+                skip_pt = (2*row_to-row_from, 2*col_to-col_from)
+                if self.graph.hasEdge((s,skip_pt)) and skip_pt not in other_pts:
+                    avail_pts_temp.append(skip_pt)
+                else:
+                    # create T points (diagonal movement)
+                    T_point_1 = (row_to + (col_to-col_from), col_to+(row_to-row_from))
+                    if self.graph.hasEdge((s, T_point_1)):
+                        avail_pts_temp.append(T_point_1)
+                    T_point_2 = (row_to + (col_from-col_to), col_to+(row_from-row_to))
+                    if self.graph.hasEdge((s, T_point_2)):
+                        avail_pts_temp.append(T_point_2)
+        player.available_points = avail_pts_temp
 
     def wall_is_valid(self, wall_string):
         try:
+            if len(wall_string) != 3:
+                print "wall invalid:", wall_string
+                return False
+            
             #print "\tprocessing turn: wall"
             wall_type = wall_string[0]
             
@@ -197,15 +235,15 @@ class QuoridorGame:
             # not valid if not representing a 2x2 block
             perp_char = 'H' if wall_type is 'V' else 'V'
             if (perp_char + wall_string[1:] in self.walls):
-                # print "wall crosses another wall"
+                # print "wall crosses another wall:", wall_string
                 return False
                 
-            # checking if both edges are in graph (can be removed by placing wall)
+            # checking if both edges are in graph (are there to be removed with wall)
             # this effectively checks 2 things:
             #   - wall within bounds of board
             #   - wall does not occupy same space as previous wall
             if not (self.graph.hasEdge(edge1) and self.graph.hasEdge(edge2)):
-                # print "wall overlap or out of bounds"
+                # print "wall overlap or out of bounds:", wall_string
                 return False
             
             # if wall cuts off all paths for either player, not valid
@@ -215,11 +253,12 @@ class QuoridorGame:
             self.remove_wall(wall_string)
             
             if paths != [True]*len(self.players):
+                # print "wall cuts off path:", wall_string
                 return False
             # if passed all the tests, it's valid!
             return True
         except Exception, e:
-            print "exceptional problems:", str(e)
+            print "exceptional problems (wall is valid):", str(e)
             return False
 
     def replay(self, history_list):

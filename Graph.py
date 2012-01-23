@@ -4,14 +4,14 @@ from pprint import pprint
 # graph error classes
 class GraphError(Exception):
     def __init__(self, message, values=0):
-        self.message = message;
-        self.values = values;
+        self.message = message
+        self.values = values
     def __str__(self):
-        return self.message;
+        return self.message
 
 class NodeNotExistError(GraphError):
     def __init__(self, node=None):
-        GraphError("Node {0}does not exist".format(str(node) if node is not None else ""));
+        GraphError("Node {0}does not exist".format(str(node) if node is not None else ""))
         
 # Graph class
 class Graph:
@@ -34,20 +34,20 @@ class Graph:
         if not directed, edges are added in both directions
         """
         
-        # self.graph_dict = graph_in;
-        self.graph_dict = {};
+        # self.graph_dict = graph_in
+        self.graph_dict = {}
         
         # loop through all edges. add both nodes and weight.
         for e in edges:
-            self.addEdge(e, directed);
+            self.addEdge(e, directed)
          
          # add all other nodes
         for n in nodes:
             if not self.graph_dict.has_key(n):
-                self.graph_dict[n] = [];
+                self.graph_dict[n] = []
         
     def __str__(self):
-        return str(self.graph_dict);
+        return str(self.graph_dict)
                 
     def addEdge(self, e, directed=True):
         """Add edge to graph.
@@ -57,27 +57,27 @@ class Graph:
         """
         
         try:
-            node1, node2, weight = e;
+            node1, node2, weight = e
         except ValueError:
-            node1, node2 = e;
-            weight = 1;
+            node1, node2 = e
+            weight = 1
         
         # add nodes if not already there
-        self.addNode(node1);
-        self.addNode(node2);
+        self.addNode(node1)
+        self.addNode(node2)
         
         # add edge from node1 to node2 if not already there
-        connection = (node2, weight);
+        connection = (node2, weight)
         if node1 is not None and node2 is not None and (connection not in self.graph_dict[node1]):
-            self.graph_dict[node1].append(connection);
+            self.graph_dict[node1].append(connection)
         
         # if undirected, add reverse edge
         if not directed:
-            self.addEdge((node2, node1, weight), True);
+            self.addEdge((node2, node1, weight), True)
     
     def addNode(self, node):
         if node is not None and not self.hasNode(node):
-            self.graph_dict[node] = [];
+            self.graph_dict[node] = []
             
     def removeEdge(self, edge, directed=True):
         """Remove edge from graph.
@@ -87,42 +87,42 @@ class Graph:
         """
         
         try:
-            node1, node2, weight = edge;
+            node1, node2, weight = edge
         except ValueError:
-            node1, node2 = edge;
-            weight = 1;
+            node1, node2 = edge
+            weight = 1
         
-        connection = (node2, weight);
+        connection = (node2, weight)
         if self.hasNode(node1):
             try:
-                self.graph_dict[node1].remove(connection);
+                self.graph_dict[node1].remove(connection)
             except:
-                pass;
+                pass
         
         # if undirected, remove reverse edge
         if not directed:
-            self.removeEdge((node2, node1, weight), True);
+            self.removeEdge((node2, node1, weight), True)
     
     # wrapper for size of dict
     def size(self):
-        return len(self.graph_dict);
+        return len(self.graph_dict)
     
     # wrapper for has_key of dict
     def hasNode(self, node):
-        return self.graph_dict.has_key(node);
+        return self.graph_dict.has_key(node)
     
     def hasEdge(self, edge):
         # Edge should be of form (node1, node2) or (node1, node2, weight).
         try:
-            node1, node2, weight = edge;
+            node1, node2, weight = edge
         except ValueError:
-            node1, node2 = edge;
-            weight = 1;
+            node1, node2 = edge
+            weight = 1
             
         try:
-            return (node2, weight) in self.graph_dict[node1];
+            return (node2, weight) in self.graph_dict[node1]
         except:
-            return False;
+            return False
     
     # depth-first search
     # given start node and list of goal nodes (reaching any considered 'success')
@@ -130,49 +130,52 @@ class Graph:
     def findPathDepthFirst(self, startnode, goalnodes, sortfunc=None):
         # first check if both nodes exist
         if not self.hasNode(startnode):
-            raise NodeNotExistError(startnode);
+            raise NodeNotExistError(startnode)
         for goalnode in goalnodes:
             if not self.hasNode(goalnode):
-                raise NodeNotExistError(goalnode);
+                raise NodeNotExistError(goalnode)
         
-        closed_nodes = [startnode];
-        cur_node = startnode;
-        path = [startnode];
-        success = cur_node in goalnodes;
+        closed_nodes = []
+        cur_node = startnode
+        path = [startnode]
+        success = cur_node in goalnodes
         while not success:  
-#            print "DFS cur =", cur_node;
+#            print "DFS cur =", cur_node
             # select next
-            next_nodes = self.get_adj_nodes(cur_node);
-            next_nodes = [node for node in next_nodes if node not in closed_nodes+path];
+            next_nodes = self.get_adj_nodes(cur_node)
+            next_nodes = [node for node in next_nodes if node not in closed_nodes+path]
             # if no options, back up and add current node to list of closed
             if len(next_nodes) == 0:
-                path.pop();
-                closed_nodes.append(cur_node);
+                closed_nodes.append(cur_node)
+                if len(path) == 0:
+                    break
+                else:                    
+                    cur_node = path.pop()
             else:
                 # if a sortfunc is given, select node with smallest dist to goalnodes
                 if sortfunc:
-                    min_node = next_nodes[0];
-                    min_dist = sortfunc(min_node);
+                    min_node = next_nodes[0]
+                    min_dist = sortfunc(min_node)
                     for node in next_nodes[1:]:
 #                        print "\tmin_node:", min_node
-                        dist = sortfunc(node);
+                        dist = sortfunc(node)
                         if dist < min_dist:
-                            min_node = node;
-                            min_dist = dist;
-                    next_node = min_node;
+                            min_node = node
+                            min_dist = dist
+                    next_node = min_node
                 else:
-                    next_node = next_nodes[0];
+                    next_node = next_nodes[0]
                 # update path
-                path.append(next_node);
+                path.append(next_node)
                 # update current node
-                cur_node = next_node;
+                cur_node = next_node
                 # check success
-                success = cur_node in goalnodes;
+                success = cur_node in goalnodes
         
         if success:
-            return path;
+            return path
         else:
-            return none;
+            return None
                 
     
     # breadth-first search: use Queue of next items
@@ -180,20 +183,20 @@ class Graph:
     def findPathBreadthFirst(self, startnode, goalnode):
         # first check if both nodes exist
         if not self.hasNode(startnode):
-            raise NodeNotExistError(startnode);
+            raise NodeNotExistError(startnode)
         if not self.hasNode(goalnode):
-            raise NodeNotExistError(goalnode);
+            raise NodeNotExistError(goalnode)
     
-        bfs_tree = self.build_BFS_tree(startnode);
-        path = [goalnode];
+        bfs_tree = self.build_BFS_tree(startnode)
+        path = [goalnode]
         if bfs_tree.get_adj_nodes(goalnode) is not None:
             while path[0] is not startnode:
-                adj = bfs_tree.get_adj_nodes(path[0]);
-                path.insert(0,adj[0]);
+                adj = bfs_tree.get_adj_nodes(path[0])
+                path.insert(0,adj[0])
         else:
-            path = None;
+            path = None
         
-        return path;
+        return path
     
     # build breadth-first-search tree as a graph.
     # edge weights ignored.
@@ -202,32 +205,32 @@ class Graph:
             raise NodeNotExistError(root_node)
         
         # initialize tree to graph with single node: the root
-        bfs_tree = Graph(graph_in={});
+        bfs_tree = Graph(graph_in={})
         # list of nodes already encountered_nodes along search
-        encountered_nodes = [root_node];
+        encountered_nodes = [root_node]
         # queue of next edges to look at
-        next_edges = deque();
+        next_edges = deque()
         # initialize next_edges
-        next_edges.append((None, root_node));
+        next_edges.append((None, root_node))
         
         while len(next_edges) > 0:
-            (parent, this_node) = next_edges.popleft();
+            (parent, this_node) = next_edges.popleft()
             # add this node to bfs tree by putting edge pointing from here back to root
             if parent is not None:
-                bfs_tree.addEdge((this_node, parent, 1), directed=True);
+                bfs_tree.addEdge((this_node, parent, 1), directed=True)
             # get all adjacent nodes
-            adj_nodes = self.get_adj_nodes(this_node);
+            adj_nodes = self.get_adj_nodes(this_node)
             # filter only ones not encountered
-            adj_nodes = filter(lambda n: n not in encountered_nodes, adj_nodes);
+            adj_nodes = filter(lambda n: n not in encountered_nodes, adj_nodes)
             # update which nodes have been encountered
-            encountered_nodes.extend(adj_nodes);
+            encountered_nodes.extend(adj_nodes)
             # add new adjacent nodes to queue
             for adj in adj_nodes:
-                next_edges.append((this_node, adj));
+                next_edges.append((this_node, adj))
         
-        return bfs_tree;
+        return bfs_tree
         
     def get_adj_nodes(self, node):
         if not self.hasNode(node):
-            return None;          
-        return [n for (n, w) in self.graph_dict[node]];
+            return None          
+        return [n for (n, w) in self.graph_dict[node]]
