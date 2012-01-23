@@ -113,6 +113,7 @@ class QuoridorGame:
             self.update_available_points()
             self.next_player()
             return False
+        # TODO - before returning, keep and update list of legal moves
             
     def add_wall(self, wall_string):
         """update game internals with given wall
