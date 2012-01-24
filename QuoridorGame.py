@@ -114,6 +114,7 @@ class QuoridorGame:
         if w_valid:
             #print "\twalled successfully"
             self.add_wall(turn_string)
+            self.current_player.use_wall()
         elif m_valid:
             #print "\tmoved successfully"
             self.do_move(turn_string)
@@ -143,7 +144,6 @@ class QuoridorGame:
         self.graph.removeEdge(edge2, directed=False)
         if playernum:
             p = self.get_player_by_num(playernum)
-            p.use_wall()
         
     def remove_wall(self, wall_string):
         # same as add_wall function but adds in edges where adding walls
@@ -207,8 +207,10 @@ class QuoridorGame:
                 row_from, col_from = cur_pt
                 row_to, col_to = s
                 skip_pt = (2*row_to-row_from, 2*col_to-col_from)
-                if self.graph.hasEdge((s,skip_pt)) and skip_pt not in other_pts:
-                    avail_pts_temp.append(skip_pt)
+                # can skip if path from other player to spot behind
+                if self.graph.hasEdge((s,skip_pt)):
+                    if skip_pt not in other_pts:
+                        avail_pts_temp.append(skip_pt)
                 else:
                     # create T points (diagonal movement)
                     T_point_1 = (row_to + (col_to-col_from), col_to+(row_to-row_from))
@@ -223,6 +225,9 @@ class QuoridorGame:
         try:
             if len(wall_string) != 3:
                 print "wall invalid:", wall_string
+                return False
+            
+            if self.current_player.num_walls == 0:
                 return False
             
             #print "\tprocessing turn: wall"
@@ -344,19 +349,19 @@ def make_4_players(name1="", name2="", name3="", name4=""):
     # player 1: 
     start1 = (1,5)
     goals1 = [(9,1), (9,2), (9,3), (9,4), (9,5), (9,6), (9,7), (9,8), (9,9)]
-    player1 = QuoridorPlayer(start1, goals1, name=name1, walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_row_inc)
+    player1 = QuoridorPlayer(start1, goals1, name=name1, num_walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_row_inc)
     # player 2:
     start2 = (5,9)
     goals2 = [(1,1), (2,1), (3,1), (4,1), (5,1), (6,1), (7,1), (8,1), (9,1)]
-    player2 = QuoridorPlayer(start2, goals2, name=name2, walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_col_dec)
+    player2 = QuoridorPlayer(start2, goals2, name=name2, num_walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_col_dec)
     # player 3:
     start3 = (9,5)
     goals3 = [(1,1), (1,2), (1,3), (1,4), (1,5), (1,6), (1,7), (1,8), (1,9)]
-    player3 = QuoridorPlayer(start3, goals3, name=name3, walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_row_dec)
+    player3 = QuoridorPlayer(start3, goals3, name=name3, num_walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_row_dec)
     # player 4:
     start4 = (5,1)
     goals4 = [(1,9), (2,9), (3,9), (4,9), (5,9), (6,9), (7,9), (8,9), (9,9)]
-    player4 = QuoridorPlayer(start4, goals4, name=name4, walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_col_inc)
+    player4 = QuoridorPlayer(start4, goals4, name=name4, num_walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_col_inc)
     # return list of players, in order
     return [player1, player2, player3, player4]
     

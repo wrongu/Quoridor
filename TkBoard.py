@@ -14,10 +14,15 @@ class TkBoard():
     SQUARE_SPACING = 10
     MARGIN = 20
     PANEL_WIDTH = 200
-    ICON_MARGINS = 55
+    ICON_MARGIN = 55
+    BUTTON_Y_START = 125
     BUTTON_WIDTH = 140
     BUTTON_HEIGHT = 50
     BUTTON_MARGIN = 20
+    LABEL_Y_START = 330
+    LABEL_FONT_SIZE = 26
+    LABEL_SPACING = 10
+    LABEL_TEXT = lambda s, n, c: ("%-"+str(n+7)+"s") % ("walls: "+"I"*c)  # lambda c: "Walls: {0}".format(c)
     DEFAULT_COLORS = {'bg': '#FFFFFF',
                       'square': '#333333',
                       'wall': '#DD6611',
@@ -25,7 +30,7 @@ class TkBoard():
                       'panel': '#333333',
                       'button': '#AA5303',
                       'text': '#000000',
-                      'players': ['#11CC11', '#CC11CC', '#BB0011', '#00CC00']
+                      'players': ['#11CC11', '#CC11CC', '#CC1111', '#11CCCC']
                       }
                       
                       
@@ -36,6 +41,7 @@ class TkBoard():
     player_ghost = None
     icon = None
     squares = [[0]*9]*9
+    wall_labels = []
     grid = None
     canvas_dims = (0,0)
     buttons = [] # will contain bbox and callback as tuple for each button
@@ -88,6 +94,8 @@ class TkBoard():
         game_state = QG.QuoridorGame(np)
         self.gs = game_state
         self.players = [None]*len(game_state.players)
+        self.max_walls = self.gs.current_player.num_walls
+        self.wall_labels = [None]*len(game_state.players)
         self.draw_players()
         self.draw_panel()
 
@@ -96,18 +104,17 @@ class TkBoard():
     def refresh(self):
         self.draw_players()
         self.clear_ghost()
-        for w in self.walls.keys():
-            self.wall_off(w)
-        for w in self.gs.walls:
-            self.wall_on(w)
+        self.active_wall = ""
+        self.redraw_walls()
         self.draw_current_player_icon()
+        self.draw_wall_counts()
     
     def draw_current_player_icon(self):
         w, h = self.canvas_dims
         midx = w - self.PANEL_WIDTH/2
         radius = self.PLAYER_SIZE/2
         x0, x1 = midx - radius, midx + radius
-        y0, y1 = self.ICON_MARGINS - radius, self.ICON_MARGINS + radius
+        y0, y1 = self.ICON_MARGIN - radius, self.ICON_MARGIN + radius
         c = self.DEFAULT_COLORS['players'][self.gs.current_player_num -1]
         oval = self.tk_canv.create_oval(x0, y0, x1, y1, fill=c, outline="")
         if self.icon:
@@ -144,12 +151,29 @@ class TkBoard():
         # buttons!
         c = self.DEFAULT_COLORS['button']
         x0, x1 = midx-self.BUTTON_WIDTH/2, midx+self.BUTTON_WIDTH/2
-        y0, y1 = 2*self.ICON_MARGINS, 2*self.ICON_MARGINS + self.BUTTON_HEIGHT
+        y0, y1 = self.BUTTON_Y_START, self.BUTTON_Y_START + self.BUTTON_HEIGHT
         self.new_rect_button("Move", c, x0, y0, x1, y1, lambda: self.set_movetype("move"))
         yshift = self.BUTTON_HEIGHT + self.BUTTON_MARGIN
         y0 += yshift
         y1 += yshift
         self.new_rect_button("Wall", c, x0, y0, x1, y1, lambda: self.set_movetype("wall"))
+        self.draw_wall_counts()
+
+    def draw_wall_counts(self):
+        w, h = self.canvas_dims
+        midx = w - self.PANEL_WIDTH/2
+        y = self.LABEL_Y_START
+        for i in range(len(self.gs.players)):
+            p = self.gs.players[i]
+            text = self.LABEL_TEXT(self.max_walls, p.num_walls)
+            c = self.DEFAULT_COLORS['players'][i]
+            l = self.wall_labels[i]
+            if not l:
+                l = self.tk_canv.create_text((midx, y), text=text, font=("Arial", self.LABEL_FONT_SIZE, "bold"), fill=c)
+                self.wall_labels[i] = l
+            else:
+                self.tk_canv.itemconfigure(l, text=text)
+            y += self.LABEL_SPACING + self.LABEL_FONT_SIZE
 
     def handle_mouse_motion(self, e):
         if self.game_over:
@@ -179,33 +203,7 @@ class TkBoard():
                     self.wall_on(wall_str)
                 else:
                     self.wall_on(wall_str, True)
-        #self.refresh()
-    
-    def handle_keypress(self, key):
-        (cr, cc) = self.gs.current_player.position
-        if key == "L":
-            cc -= 1
-        elif key == "R":
-            cc += 1
-        elif key == "U":
-            cr -= 1
-        elif key == "D":
-            cr += 1
-        move_str = QG.point_to_notation((cr, cc))
-        self.exec_wrapper(move_str)
-        self.refresh()
-        
-            
-    def wall_on(self, wall_str, error=False):
-        color = self.DEFAULT_COLORS['wall'] if not error else self.DEFAULT_COLORS['wall-error']
-        if wall_str in self.walls:
-            box_id = self.walls[wall_str]
-            self.tk_canv.itemconfigure(box_id, fill=color)
-        
-    def wall_off(self, wall_str):
-        if wall_str in self.walls:
-            box_id = self.walls[wall_str]
-            self.tk_canv.itemconfigure(box_id, fill="")
+        self.redraw_walls()
     
     def handle_click(self, e):
         if self.game_over:
@@ -229,7 +227,38 @@ class TkBoard():
             pos = QG.point_to_notation(topleft)
             wall_str = orient+pos
             self.exec_wrapper(wall_str)
-        self.refresh()
+
+    def handle_keypress(self, key):
+        (cr, cc) = self.gs.current_player.position
+        if key == "L":
+            cc -= 1
+        elif key == "R":
+            cc += 1
+        elif key == "U":
+            cr -= 1
+        elif key == "D":
+            cr += 1
+        move_str = QG.point_to_notation((cr, cc))
+        self.exec_wrapper(move_str)
+            
+    def wall_on(self, wall_str, error=False):
+        color = self.DEFAULT_COLORS['wall'] if not error else self.DEFAULT_COLORS['wall-error']
+        if wall_str in self.walls:
+            box_id = self.walls[wall_str]
+            self.tk_canv.itemconfigure(box_id, fill=color)
+        
+    def wall_off(self, wall_str):
+        if wall_str in self.walls:
+            box_id = self.walls[wall_str]
+            self.tk_canv.itemconfigure(box_id, fill="")
+    
+    def redraw_walls(self):
+        for w in self.walls.keys():
+            self.wall_off(w)
+        for w in self.gs.walls:
+            self.wall_on(w)
+        if self.active_wall:
+            self.wall_on(self.active_wall)
 
     def exec_wrapper(self, turn_str):
         success = self.gs.execute_turn(turn_str)
@@ -240,6 +269,7 @@ class TkBoard():
             print "Winner!!"
             print "Player", self.gs.current_player_num
             self.game_over = True
+        self.refresh()
 
     def draw_squares(self):
         import random
