@@ -28,6 +28,7 @@ The board itself and what I call the "panel" on the right should both be pretty 
 * press SPACE - toggle type of move
 * Arrow Keys - move in that direction
 * Click on board to move to a space or place a wall
+* Escape - quit
 
 ---
 

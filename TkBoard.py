@@ -197,13 +197,9 @@ class TkBoard():
             pos = QG.point_to_notation(topleft)
             wall_str = orient+pos
             if wall_str != self.active_wall:
-                self.wall_off(self.active_wall)
                 self.active_wall = wall_str
-                if self.gs.turn_is_valid(wall_str, "wall"):
-                    self.wall_on(wall_str)
-                else:
-                    self.wall_on(wall_str, True)
-        self.redraw_walls()
+                active_error = not self.gs.turn_is_valid(wall_str, "wall")
+                self.redraw_walls(active_error)
     
     def handle_click(self, e):
         if self.game_over:
@@ -218,15 +214,17 @@ class TkBoard():
                 return
         # check for turn execution
         grid = self.point_to_grid((x,y))
-        success = 0
+        success = False
         if grid and self.moveType == "move":
             move_str = QG.point_to_notation(grid)
-            self.exec_wrapper(move_str)
+            success = self.exec_wrapper(move_str)
         elif grid and self.moveType == "wall":
             orient, topleft = self.xy_to_wall_spec(grid, x, y)
             pos = QG.point_to_notation(topleft)
             wall_str = orient+pos
-            self.exec_wrapper(wall_str)
+            success = self.exec_wrapper(wall_str)
+        if success:
+            self.refresh()
 
     def handle_keypress(self, key):
         (cr, cc) = self.gs.current_player.position
@@ -239,37 +237,48 @@ class TkBoard():
         elif key == "D":
             cr += 1
         move_str = QG.point_to_notation((cr, cc))
-        self.exec_wrapper(move_str)
+        success = self.exec_wrapper(move_str)
+        if success:
+            self.refresh()
             
     def wall_on(self, wall_str, error=False):
         color = self.DEFAULT_COLORS['wall'] if not error else self.DEFAULT_COLORS['wall-error']
         if wall_str in self.walls:
             box_id = self.walls[wall_str]
-            self.tk_canv.itemconfigure(box_id, fill=color)
+            if not error:
+                self.tk_canv.itemconfigure(box_id, fill=color)
+            else:
+                # instead of above: changing color, delete and redraw it
+                #   so it's the topmost element
+                self.tk_canv.delete(box_id)
+                (x0, y0, x1, y1) = self.wall_str_to_coords(wall_str)
+                self.walls[wall_str] = self.tk_canv.create_rectangle(x0, y0, x1, y1, fill=color, outline="")
         
     def wall_off(self, wall_str):
         if wall_str in self.walls:
             box_id = self.walls[wall_str]
             self.tk_canv.itemconfigure(box_id, fill="")
     
-    def redraw_walls(self):
+    def redraw_walls(self, active_error=True):
         for w in self.walls.keys():
             self.wall_off(w)
         for w in self.gs.walls:
             self.wall_on(w)
         if self.active_wall:
-            self.wall_on(self.active_wall)
+            self.wall_on(self.active_wall, active_error)
 
     def exec_wrapper(self, turn_str):
         success = self.gs.execute_turn(turn_str)
         if success == 1:
             self.moveType = "move"
+            return True
         elif success == 2:
             # winner!
             print "Winner!!"
             print "Player", self.gs.current_player_num
             self.game_over = True
-        self.refresh()
+            return True
+        return False
 
     def draw_squares(self):
         import random
