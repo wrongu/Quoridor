@@ -16,9 +16,9 @@ class TkBoard():
     PANEL_WIDTH = 200
     ICON_MARGIN = 55
     BUTTON_Y_START = 125
-    BUTTON_WIDTH = 140
-    BUTTON_HEIGHT = 50
-    BUTTON_MARGIN = 20
+    BUTTON_WIDTH = 100
+    BUTTON_HEIGHT = 30
+    BUTTON_MARGIN = 10
     LABEL_Y_START = 330
     LABEL_FONT_SIZE = 26
     LABEL_SPACING = 10
@@ -28,7 +28,7 @@ class TkBoard():
                       'wall': '#DD6611',
                       'wall-error': '#CC1111',
                       'panel': '#333333',
-                      'button': '#AA5303',
+                      'button': '#555555',#'#AA5303',
                       'text': '#000000',
                       'players': ['#11CC11', '#CC11CC', '#CC1111', '#11CCCC']
                       }
@@ -48,6 +48,8 @@ class TkBoard():
     walls = {}   # will be dictionary of name => id. all will exist, transparency toggled, colors changed for errors
     active_wall = ""
     active_move = ""
+    recent_x = 0
+    recent_y = 0
     
     # GAME-INTERACTION VARIABLES
     gs = None
@@ -70,7 +72,7 @@ class TkBoard():
             
         self.tk_root = Tk()
         self.tk_root.bind("<Escape>",   lambda e: self.tk_root.destroy())
-        self.tk_root.bind("<Motion>",   lambda e: self.handle_mouse_motion(e))
+        self.tk_root.bind("<Motion>",   lambda e: self.handle_mouse_motion(e.x, e.y))
         self.tk_root.bind("<Button-1>", lambda e: self.handle_click(e))
         self.tk_root.bind("<Left>",     lambda e: self.handle_keypress("L"))
         self.tk_root.bind("<Right>",    lambda e: self.handle_keypress("R"))
@@ -79,6 +81,8 @@ class TkBoard():
         self.tk_root.bind("w",          lambda e: self.set_movetype("wall"))
         self.tk_root.bind("m",          lambda e: self.set_movetype("move"))
         self.tk_root.bind("<space>",    lambda e: self.toggle_movetype())
+        self.tk_root.bind("u",          lambda e: self.undo())
+        self.tk_root.bind("r",          lambda e: self.redo())
     
         # margin - space/2 - square - space - square - ... - square - space/2 - margin - panel
         total_height = 9*self.SQUARE_SIZE + 9*self.SQUARE_SPACING + 2*self.MARGIN
@@ -104,10 +108,12 @@ class TkBoard():
     def refresh(self):
         self.draw_players()
         self.clear_ghost()
-        self.active_wall = ""
-        self.redraw_walls()
         self.draw_current_player_icon()
         self.draw_wall_counts()
+        self.active_wall = ""
+        self.active_move = ""
+        self.redraw_walls(False)
+        self.handle_mouse_motion(self.recent_x, self.recent_y)
     
     def draw_current_player_icon(self):
         w, h = self.canvas_dims
@@ -157,8 +163,22 @@ class TkBoard():
         y0 += yshift
         y1 += yshift
         self.new_rect_button("Wall", c, x0, y0, x1, y1, lambda: self.set_movetype("wall"))
+        y0 += yshift
+        y1 += yshift
+        self.new_rect_button("undo", c, x0, y0, x1, y1, lambda: self.undo())
+        y0 += yshift
+        y1 += yshift
+        self.new_rect_button("redo", c, x0, y0, x1, y1, lambda: self.redo())
+        # "walls: IIII" text
         self.draw_wall_counts()
-
+    
+    def undo(self):
+        self.gs.undo()
+        self.refresh()
+    def redo(self):
+        self.gs.redo()
+        self.refresh()
+    
     def draw_wall_counts(self):
         w, h = self.canvas_dims
         midx = w - self.PANEL_WIDTH/2
@@ -175,13 +195,12 @@ class TkBoard():
                 self.tk_canv.itemconfigure(l, text=text)
             y += self.LABEL_SPACING + self.LABEL_FONT_SIZE
 
-    def handle_mouse_motion(self, e):
+    def handle_mouse_motion(self, x, y):
         if self.game_over:
             return
-        x = e.x
-        y = e.y
+        self.recent_x = x
+        self.recent_y = y
         grid = self.point_to_grid((x,y))
-        
         if grid and self.moveType == "move":
             move_str = QG.point_to_notation(grid)
             if move_str != self.active_move:

@@ -11,6 +11,14 @@ class QuoridorPlayer:
         self.num_walls = num_walls       
         self.sortfunc = sortfunc
         self.available_points = []
+        self.movement_history = [start_position] # entire path taken throughout the game
+    
+    def push_location(self, grid_pt):
+        self.movement_history.append(self.position)
+        self.position = grid_pt
+    
+    def pop_location(self):
+        self.position = self.movement_history.pop()
     
     def set_name(self, new_name):
         self.name = new_name

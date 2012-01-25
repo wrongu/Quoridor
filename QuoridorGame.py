@@ -1,9 +1,6 @@
 # This module provides python classes to represent the board game Quoridor.
 # Modules for player, graph, interaction, graphics, or AI done separately.
 
-# TODO - undo, redo
-#   use history + replay
-
 import SpecialGraphs
 from QuoridorPlayer import QuoridorPlayer
 import string
@@ -54,11 +51,10 @@ class QuoridorGame:
         for both of these, the point "A" will be used to denote the wall's location
         
     """
-    legal_moves = []
-    legal_walls = []
     
     def __init__(self, num_players = 2):
         self.history = []
+        self.redo_history = []
         # players: 2 or 4
         if num_players == 2:
             self.players = make_2_players()
@@ -74,6 +70,8 @@ class QuoridorGame:
         self.graph = SpecialGraphs.GraphNet(9,9)
         # initially no walls
         self.walls = []
+        self.legal_moves = []
+        self.legal_walls = []
         self.update_legal_moves()
         self.update_legal_walls()
 
@@ -90,11 +88,20 @@ class QuoridorGame:
         #print "current player:", self.current_player_num
         #print "current player position:", self.current_player.position
     
+    def prev_player(self):
+        self.current_player_num -= 1
+        if self.current_player_num == 0:
+            self.current_player_num = len(self.players)
+        self.current_player = self.get_player_by_num(self.current_player_num)
+        self.other_players = [p for p in self.players]
+        self.other_players.remove(self.current_player)
+        
+    
     def get_player_by_num(self, num):
         return self.players[num-1]
         
-    # TODO - check wins..?
-    def execute_turn(self, turn_string):
+    # TODO - if not a redo, clear redo hist
+    def execute_turn(self, turn_string, is_redo=False):
         """Given turn (move or wall) in official string notation,
         
         update internal state if move is valid and swap players
@@ -127,11 +134,32 @@ class QuoridorGame:
             return 2
         # no win - move on to next player
         else:
+            if not is_redo:
+                self.redo_history = []
             self.history.append(turn_string)
             self.next_player()
             self.update_legal_moves()
             self.update_legal_walls()
             return 1
+    
+    def undo(self):
+        if len(self.history) > 0:
+            self.prev_player()
+            turn = self.history.pop()
+            self.redo_history.append(turn)
+            if len(turn) == 2:
+                print "moving player", self.current_player_num, "from", self.current_player.position,
+                self.current_player.pop_location()
+                print "to", self.current_player.position
+            elif len(turn) == 3:
+                self.remove_wall(turn)
+                self.current_player.num_walls += 1
+            self.update_legal_moves()
+            self.update_legal_walls()
+    
+    def redo(self):
+        if len(self.redo_history) > 0:
+            self.execute_turn(self.redo_history.pop(), True)
             
     def add_wall(self, wall_string, playernum=None):
         """update game internals with given wall
@@ -154,7 +182,7 @@ class QuoridorGame:
         self.graph.addEdge(edge2, directed=False)
                 
     def do_move(self, move_string):
-        self.current_player.set_pos(notation_to_point(move_string))
+        self.current_player.push_location(notation_to_point(move_string))
 
     def get_shortest_path(self, start, end):
         return self.graph.findPathBreadthFirst(start, end)
