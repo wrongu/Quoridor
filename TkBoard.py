@@ -175,6 +175,7 @@ class TkBoard():
     def undo(self):
         self.gs.undo()
         self.refresh()
+        self.game_over = False
     def redo(self):
         self.gs.redo()
         self.refresh()
