@@ -29,6 +29,8 @@ The board itself and what I call the "panel" on the right should both be pretty 
 * Arrow Keys - move in that direction
 * Click on board to move to a space or place a wall
 * Escape - quit
+* press U or click button to undo
+* press R or click button to redo
 
 ---
 
