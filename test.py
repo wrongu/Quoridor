@@ -1,5 +1,5 @@
 # test Quoridor
-import QuoridorGame;
+import Game;
 
 history = ["2e",
 "8e",
@@ -8,5 +8,5 @@ history = ["2e",
 "H67de",
 "V67de"];
 
-game = QuoridorGame.QuoridorGame();
+game = Game.Game();
 game.replay(history);

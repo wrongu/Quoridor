@@ -2,15 +2,15 @@
 # Modules for player, graph, interaction, graphics, or AI done separately.
 
 import SpecialGraphs
-from QuoridorPlayer import QuoridorPlayer
+from Player import Player
 import string
-import Quoridor_AI_API as ai
+import GameHelpers as helpers
 import random
 
-class QuoridorException(Exception):
+class Exception(Exception):
     pass
 
-class QuoridorGame:
+class Game:
     """Abstract representation of a game of quoridor
     
     history: a list of turn strings
@@ -57,11 +57,11 @@ class QuoridorGame:
         self.redo_history = []
         # players: 2 or 4
         if num_players == 2:
-            self.players = make_2_players()
+            self.players = helpers.make_2_players()
         elif num_players == 4:
-            self.players = make_4_players()
+            self.players = helpers.make_4_players()
         else:
-            raise QuoridorException("invalid number of players: {0}".format(num_players))
+            raise Exception("invalid number of players: {0}".format(num_players))
         cpn = random.randint(1,num_players)
         self.current_player_num = cpn
         self.current_player = self.players[cpn-1]
@@ -127,7 +127,7 @@ class QuoridorGame:
             self.do_move(turn_string)
         else:
             #print "execution failed"
-            #raise QuoridorException("invalid turn string given to execute_turn()")
+            #raise Exception("invalid turn string given to execute_turn()")
             return 0
         # check for win
         if self.current_player.position in self.current_player.goal_positions:
@@ -165,7 +165,7 @@ class QuoridorGame:
         must run is_valid check first - no checks preformed here
         """
         self.walls.append(wall_string)
-        edge1, edge2 = wall_string_to_edges(wall_string)
+        edge1, edge2 = helpers.wall_string_to_edges(wall_string)
         self.graph.removeEdge(edge1, directed=False)
         self.graph.removeEdge(edge2, directed=False)
         if playernum:
@@ -175,12 +175,12 @@ class QuoridorGame:
         # same as add_wall function but adds in edges where adding walls
         #   removes edges
         self.walls.pop()
-        edge1, edge2 = wall_string_to_edges(wall_string)
+        edge1, edge2 = helpers.wall_string_to_edges(wall_string)
         self.graph.addEdge(edge1, directed=False)
         self.graph.addEdge(edge2, directed=False)
                 
     def do_move(self, move_string):
-        self.current_player.push_location(notation_to_point(move_string))
+        self.current_player.push_location(helpers.notation_to_point(move_string))
 
     def get_shortest_path(self, start, end):
         return self.graph.findPathBreadthFirst(start, end)
@@ -192,11 +192,11 @@ class QuoridorGame:
     def update_legal_moves(self):
         self.update_available_points()
         legal_pts = self.current_player.available_points
-        self.legal_moves = [point_to_notation(p) for p in legal_pts]
+        self.legal_moves = [helpers.point_to_notation(p) for p in legal_pts]
         #print "legal moves updated to:", self.legal_moves
 
     def update_legal_walls(self):
-        all_w = ai.all_walls()
+        all_w = helpers.all_walls()
         all_w = [w for w in all_w if w not in self.walls]
         all_w = filter(lambda w: self.wall_is_valid(w), all_w)
         self.legal_walls = all_w
@@ -216,7 +216,7 @@ class QuoridorGame:
             available_points = self.current_player.available_points
             if not available_points:
                 self.update_available_points()
-            return notation_to_point(move_string) in self.current_payer.available_points
+            return helpers.notation_to_point(move_string) in self.current_payer.available_points
         except:
             return False
     """
@@ -259,7 +259,7 @@ class QuoridorGame:
             #print "\tprocessing turn: wall"
             wall_type = wall_string[0]
             
-            edge1, edge2 = wall_string_to_edges(wall_string)
+            edge1, edge2 = helpers.wall_string_to_edges(wall_string)
             (r1, c1), (r2, c2) = edge1, edge2
             topleft = (min(r1,r2), min(c1,c2))
             
@@ -305,89 +305,3 @@ class QuoridorGame:
             if self.current_player.position in self.current_player.goal_positions:
                 print "Winner!", self.current_player.name
         #print "Replay Done"
-        
-
-# Helper Functions
-def point_to_notation(pt):
-    # both row and column are in [1,9]. rows denoted by this number,
-    #   but columns denoted by letters 'a' through 'i'
-    row, column = pt
-    return "{0}{1}".format(row, col_to_letter(column))
-
-def notation_to_point(point_str):
-    # must be given as "5e", for example. row int and column letter
-    row = int(point_str[0])
-    col = letter_to_col(string.lower(point_str[1]))
-    return (row, col)
-
-def letter_to_col(letter):
-    return ord(letter) - ord('a') + 1
-
-def col_to_letter(num):
-    return chr(ord('a') + num - 1)
-
-def wall_string_to_4_points(wall_string):
-    """get 4 points as tuples
-    
-    clockwise starting from 'topleft'
-    """
-    row_up, col_left = notation_to_point(wall_string[1:3])
-    row_down, col_right = row_up+1, col_left+1
-    # tuples of 4 adjacent squares
-    up_left     = (row_up,   col_left)
-    up_right    = (row_up,   col_right)
-    down_left   = (row_down, col_left)
-    down_right  = (row_down, col_right)
-    return (up_left, up_right, down_left, down_right)
-
-def wall_string_to_edges(wall_string):
-    """get tuple of 2 edges
-    
-    each edge has (point1, point2)
-    each point is (row, col)
-    *matches format in SpecialGraphs.GraphNet
-    """
-    (up_left, up_right, down_left, down_right) = wall_string_to_4_points(wall_string)
-    if wall_string[0] == "H":
-        return ((up_left, down_left), (up_right, down_right))
-    elif wall_string[0] == "V":
-        return ((up_left, up_right), (down_left, down_right))
-    else:
-        return (None,None)
-
-def make_2_players(name1="", name2=""):
-    # definitions of start and goales for 2 players, all stated explicitly
-    
-    # player 1: 
-    start1 = (1,5)
-    goals1 = [(9,1), (9,2), (9,3), (9,4), (9,5), (9,6), (9,7), (9,8), (9,9)]
-    player1 = QuoridorPlayer(start1, goals1, name=name1, sortfunc=SpecialGraphs.graph_net_sortfunc_row_inc)
-    # player 2:
-    start2 = (9,5)
-    goals2 = [(1,1), (1,2), (1,3), (1,4), (1,5), (1,6), (1,7), (1,8), (1,9)]
-    player2 = QuoridorPlayer(start2, goals2, name=name2, sortfunc=SpecialGraphs.graph_net_sortfunc_row_dec)
-    # return list of players, in order
-    return [player1, player2]
-    
-def make_4_players(name1="", name2="", name3="", name4=""):
-    # definitions of start and goales for 2 players, all stated explicitly
-    
-    # player 1: 
-    start1 = (1,5)
-    goals1 = [(9,1), (9,2), (9,3), (9,4), (9,5), (9,6), (9,7), (9,8), (9,9)]
-    player1 = QuoridorPlayer(start1, goals1, name=name1, num_walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_row_inc)
-    # player 2:
-    start2 = (5,9)
-    goals2 = [(1,1), (2,1), (3,1), (4,1), (5,1), (6,1), (7,1), (8,1), (9,1)]
-    player2 = QuoridorPlayer(start2, goals2, name=name2, num_walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_col_dec)
-    # player 3:
-    start3 = (9,5)
-    goals3 = [(1,1), (1,2), (1,3), (1,4), (1,5), (1,6), (1,7), (1,8), (1,9)]
-    player3 = QuoridorPlayer(start3, goals3, name=name3, num_walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_row_dec)
-    # player 4:
-    start4 = (5,1)
-    goals4 = [(1,9), (2,9), (3,9), (4,9), (5,9), (6,9), (7,9), (8,9), (9,9)]
-    player4 = QuoridorPlayer(start4, goals4, name=name4, num_walls=5, sortfunc=SpecialGraphs.graph_net_sortfunc_col_inc)
-    # return list of players, in order
-    return [player1, player2, player3, player4]
-    

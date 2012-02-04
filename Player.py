@@ -1,4 +1,4 @@
-class QuoridorPlayer:
+class Player:
     """Small Class for a Quoridor Player
     
     Player includes position = (row, column), goal squares, and number of walls. optional: name
@@ -39,7 +39,7 @@ class QuoridorPlayer:
         return self.goal_positions
     
     def duplicate(self):
-        return QuoridorPlayer(
+        return Player(
             self.position,
             self.goals,
             self.num_walls,

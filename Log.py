@@ -1,8 +1,8 @@
 # write history to file
 
-import QuoridorGame
+import Game
 
-class QuoridorLog:
+class Log:
     
     @staticmethod
     def dump_game_state(game_state, filename=""):
