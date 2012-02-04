@@ -148,9 +148,7 @@ class QuoridorGame:
             turn = self.history.pop()
             self.redo_history.append(turn)
             if len(turn) == 2:
-                print "moving player", self.current_player_num, "from", self.current_player.position,
                 self.current_player.pop_location()
-                print "to", self.current_player.position
             elif len(turn) == 3:
                 self.remove_wall(turn)
                 self.current_player.num_walls += 1
