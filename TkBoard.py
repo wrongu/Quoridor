@@ -1,7 +1,7 @@
 from Tkinter import *
 from math import floor
 import Game as QG
-import GameHelpers as helpers
+import Helpers as helpers
 from sys import argv
 
 # TODO - print graph
@@ -39,6 +39,7 @@ class TkBoard():
     players = []
     player_ghost = None
     icon = None
+    ai_label = None
     squares = [[0]*9]*9
     wall_labels = []
     grid = None
@@ -63,7 +64,7 @@ class TkBoard():
             if k in self.DEFAULT_COLORS.keys():
                 self.DEFAULT_COLORS[k] = new_colors_dict[k]
     
-    def new_game(self, np=2):
+    def new_game(self, np=2, nai=0):
         """Destroy old board, draw new board, update object state with new board
         """
         if self.tk_root:
@@ -82,6 +83,7 @@ class TkBoard():
         self.tk_root.bind("<space>",    lambda e: self.toggle_movetype())
         self.tk_root.bind("u",          lambda e: self.undo())
         self.tk_root.bind("r",          lambda e: self.redo())
+        self.tk_root.bind("a",    lambda e: self.refresh())
     
         # margin - space/2 - square - space - square - ... - square - space/2 - margin - panel
         total_height = 9*self.SQUARE_SIZE + 9*self.SQUARE_SPACING + 2*self.MARGIN
@@ -94,25 +96,42 @@ class TkBoard():
         self.draw_squares()
         self.generate_walls()
         
-        game_state = QG.Game(np)
+        game_state = QG.Game(np, nai)
         self.gs = game_state
         self.players = [None]*len(game_state.players)
         self.max_walls = self.gs.current_player.num_walls
         self.wall_labels = [None]*len(game_state.players)
-        self.draw_players()
         self.draw_panel()
+        self.refresh(False)
 
         self.tk_root.mainloop()
     
-    def refresh(self):
-        self.draw_players()
+    def refresh(self, check_ai=True):
+        print "--refresh--"
         self.clear_ghost()
         self.draw_current_player_icon()
         self.draw_wall_counts()
         self.active_wall = ""
         self.active_move = ""
-        self.redraw_walls(False)
         self.handle_mouse_motion(self.recent_x, self.recent_y)
+        self.draw_players()
+        self.redraw_walls(False)
+        if check_ai:
+            self.get_ai_move()
+       
+    def get_ai_move(self):
+        if self.gs.current_player.ai:
+            turn = self.gs.current_player.ai.get_move(self.gs.duplicate())
+            while not self.exec_wrapper(turn, True):
+                print "\n################"
+                print   "### AI ERROR ###"
+                print   "################\n"
+                y = raw_input("continue (y)? ")
+                if y == "y":
+                    turn = self.gs.current_player.ai.get_move(self.gs.duplicate())
+                else:
+                    break
+            self.refresh()
     
     def draw_current_player_icon(self):
         w, h = self.canvas_dims
@@ -125,6 +144,12 @@ class TkBoard():
         if self.icon:
             self.tk_canv.delete(self.icon)
         self.icon = oval
+        text = None
+        if self.gs.current_player.ai:
+            text = self.tk_canv.create_text((midx, self.ICON_MARGIN), text="AI", font=("Arial", 14, "bold"))
+        if self.ai_label:
+            self.tk_canv.delete(self.ai_label)
+        self.ai_label = text
 
     def new_rect_button(self, text, fill, x0, y0, x1, y1, callback):
         hover_lighten = TkBoard.alpha_hax(fill, "#FFFFFF", 0.25)
@@ -221,7 +246,7 @@ class TkBoard():
                 self.redraw_walls(active_error)
     
     def handle_click(self, e):
-        if self.game_over:
+        if self.game_over or self.gs.current_player.ai:
             return
         x = e.x
         y = e.y
@@ -286,10 +311,16 @@ class TkBoard():
         if self.active_wall:
             self.wall_on(self.active_wall, active_error)
 
-    def exec_wrapper(self, turn_str):
+    def exec_wrapper(self, turn_str, from_ai=False):
+        is_ai = self.gs.current_player.ai is not None
+        if from_ai != is_ai:
+            return False
+        print "EXECUTING %s TURN" % ("AI" if is_ai else "HUMAN")
         success = self.gs.execute_turn(turn_str)
         if success == 1:
+            print "\tSUCCESS"
             self.moveType = "move"
+            self.refresh(False)
             return True
         elif success == 2:
             # winner!
@@ -297,6 +328,7 @@ class TkBoard():
             print "Player", self.gs.current_player_num
             self.game_over = True
             return True
+        print "\tFAILED"
         return False
 
     def draw_squares(self):
@@ -443,8 +475,8 @@ class TkBoard():
         
         return "#"+hex_r+hex_g+hex_b
 
-    def __init__(self, n):
-        self.new_game(n)
+    def __init__(self, n, ai):
+        self.new_game(n, ai)
 
 if __name__ == "__main__":
     n = 2
@@ -453,4 +485,10 @@ if __name__ == "__main__":
             n = int(argv[1])
         except:
             pass
-    tkb = TkBoard(n)
+    ai = 0
+    if len(argv) > 2:
+        try:
+            ai = int(argv[2])
+        except:
+            pass
+    tkb = TkBoard(n, ai)

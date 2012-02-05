@@ -4,7 +4,7 @@ class Player:
     Player includes position = (row, column), goal squares, and number of walls. optional: name
     row and column are 1 through 9
     """
-    def __init__(self, start_position, goals, num_walls = 10, name="", sortfunc=None):
+    def __init__(self, start_position, goals, num_walls = 10, name="", sortfunc=None, ai=None):
         self.position = start_position
         self.goal_positions = goals
         self.name = name
@@ -12,6 +12,7 @@ class Player:
         self.sortfunc = sortfunc
         self.available_points = []
         self.movement_history = [start_position] # entire path taken throughout the game
+        self.ai = ai
     
     def push_location(self, grid_pt):
         self.movement_history.append(self.position)

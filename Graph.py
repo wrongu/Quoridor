@@ -188,14 +188,23 @@ class Graph:
             raise NodeNotExistError(goalnode)
     
         bfs_tree = self.build_BFS_tree(startnode)
-        path = [goalnode]
-        if bfs_tree.get_adj_nodes(goalnode) is not None:
-            while path[0] is not startnode:
-                adj = bfs_tree.get_adj_nodes(path[0])
+        return self.pathFromBFSTree(bfs_tree, startnode, goalnode)
+    
+    # get path from BFS tree
+    def pathFromBFSTree(self, bfs_tree, root, goal):
+        path = [goal]
+        while path[0] is not root:
+            adj = bfs_tree.get_adj_nodes(path[0])
+            if adj:
                 path.insert(0,adj[0])
-        else:
-            path = None
-        
+            else:
+                #pprint(bfs_tree.graph_dict)
+                #print "path so far:"
+                #pprint(path)
+                #print "root-goal:"
+                #print root,"-",goal
+                path = None
+                break
         return path
     
     # build breadth-first-search tree as a graph.

@@ -4,8 +4,10 @@
 import SpecialGraphs
 from Player import Player
 import string
-import GameHelpers as helpers
+import Helpers as helpers
 import random
+from TreeAI import TreeAI
+from pprint import pprint 
 
 class Exception(Exception):
     pass
@@ -52,7 +54,7 @@ class Game:
         
     """
     
-    def __init__(self, num_players = 2):
+    def __init__(self, num_players = 2, num_ai = 0):
         self.history = []
         self.redo_history = []
         # players: 2 or 4
@@ -62,10 +64,20 @@ class Game:
             self.players = helpers.make_4_players()
         else:
             raise Exception("invalid number of players: {0}".format(num_players))
+        if num_ai > num_players:
+            raise Exception("cannot have more ai than players")
+            
         cpn = random.randint(1,num_players)
+        self.starting_player = cpn # never forget who started!
         self.current_player_num = cpn
         self.current_player = self.players[cpn-1]
         self.other_players = [p for p in self.players if p != self.current_player]
+        all_inds = range(len(self.players))
+        while num_ai > 0:
+            ai_player = random.choice(all_inds)
+            self.players[ai_player].ai = TreeAI()
+            all_inds.remove(ai_player)
+            num_ai -= 1
         # special graph for grid
         self.graph = SpecialGraphs.GraphNet(9,9)
         # initially no walls
@@ -74,6 +86,18 @@ class Game:
         self.legal_walls = []
         self.update_legal_moves()
         self.update_legal_walls()
+    
+    def duplicate(self):
+        # make new game with same state as self
+        #   this copy game should be passed to AI n' stuff so they can't actually do any damage
+        new_gs = Game(len(self.players))
+        cpn = self.starting_player
+        new_gs.current_player_num = cpn
+        new_gs.current_player = new_gs.players[cpn-1]
+        new_gs.other_players = [p for p in new_gs.players if p != new_gs.current_player]
+        new_gs.replay(self.history)
+        
+        return new_gs
 
     def next_player(self):
         """update 'current_player' variables
@@ -185,6 +209,14 @@ class Game:
     def get_shortest_path(self, start, end):
         return self.graph.findPathBreadthFirst(start, end)
 
+    def get_shortest_path_player(self, player):
+        p = player
+        bfs_tree = self.graph.build_BFS_tree(p.position)
+        paths = [self.graph.pathFromBFSTree(bfs_tree, p.position, g) for g in p.goal_positions]
+        paths = filter(lambda p: p is not None, paths)
+        paths = sorted(paths, cmp = lambda a, b: len(a)-len(b))
+        return paths[0]
+
     def path_exists(self, player_num):
         player = self.get_player_by_num(player_num)
         return self.graph.findPathDepthFirst(player.position, player.goal_positions, player.sortfunc) is not None
@@ -293,15 +325,12 @@ class Game:
             return False
 
     def replay(self, history_list):
-        for i in range (0, len(history_list)):
+        for i in range (len(history_list)):
             # execute. if not successful, break.
             current_turn = history_list[i]
             #print "turn", i
             if not self.execute_turn(current_turn):
-                print "on turn", i, "invalid move:", current_turn
+                print "replay :: on turn", i, "invalid move:", current_turn
                 break
             # TODO: draw and pause?
-            # check win
-            if self.current_player.position in self.current_player.goal_positions:
-                print "Winner!", self.current_player.name
         #print "Replay Done"
