@@ -3,6 +3,8 @@ from math import floor
 import Game as QG
 import Helpers as helpers
 from sys import argv
+from time import sleep
+from threading import Thread
 
 # TODO - print graph
 
@@ -56,6 +58,9 @@ class TkBoard():
     moveType = "move"
     game_over = False
     
+    # CONTROL VARIABLES
+    THREAD_SLEEP = 0.1
+    
     def set_default_colors(new_colors_dict={}):
         """update default colors with given dictionary of new color scheme
         
@@ -71,7 +76,7 @@ class TkBoard():
             self.tk_root.destroy()
             
         self.tk_root = Tk()
-        self.tk_root.bind("<Escape>",   lambda e: self.tk_root.destroy())
+        self.tk_root.bind("<Escape>",   lambda e: self.handle_quit())
         self.tk_root.bind("<Motion>",   lambda e: self.handle_mouse_motion(e.x, e.y))
         self.tk_root.bind("<Button-1>", lambda e: self.handle_click(e))
         self.tk_root.bind("<Left>",     lambda e: self.handle_keypress("L"))
@@ -83,7 +88,8 @@ class TkBoard():
         self.tk_root.bind("<space>",    lambda e: self.toggle_movetype())
         self.tk_root.bind("u",          lambda e: self.undo())
         self.tk_root.bind("r",          lambda e: self.redo())
-        self.tk_root.bind("a",    lambda e: self.refresh())
+        self.tk_root.bind("<Enter>",    lambda e: self.refresh())
+        self.thread_kill = False
     
         # margin - space/2 - square - space - square - ... - square - space/2 - margin - panel
         total_height = 9*self.SQUARE_SIZE + 9*self.SQUARE_SPACING + 2*self.MARGIN
@@ -98,16 +104,32 @@ class TkBoard():
         
         game_state = QG.Game(np, nai)
         self.gs = game_state
-        self.players = [None]*len(game_state.players)
+        self.players = [(None, None)]*len(game_state.players)
         self.max_walls = self.gs.current_player.num_walls
         self.wall_labels = [None]*len(game_state.players)
         self.draw_panel()
         self.refresh(False)
+        th = Thread(target = lambda : self.background_loop())
+        th.start()
 
         self.tk_root.mainloop()
     
+    def background_loop(self):
+        while True:
+            if self.thread_kill:
+                break
+            self.get_ai_move(False)
+            sleep(self.THREAD_SLEEP)
+        print "--- END BACKGROUND LOOP ---"
+    
+    def handle_quit(self):
+        self.thread_kill = True
+        for p in self.gs.players:
+            if p.ai and p.ai.thread_started:
+                p.ai.kill_thread()
+        self.tk_root.destroy()
+    
     def refresh(self, check_ai=True):
-        print "--refresh--"
         self.clear_ghost()
         self.draw_current_player_icon()
         self.draw_wall_counts()
@@ -119,19 +141,30 @@ class TkBoard():
         if check_ai:
             self.get_ai_move()
        
-    def get_ai_move(self):
-        if self.gs.current_player.ai:
-            turn = self.gs.current_player.ai.get_move(self.gs.duplicate())
-            while not self.exec_wrapper(turn, True):
-                print "\n################"
-                print   "### AI ERROR ###"
-                print   "################\n"
-                y = raw_input("continue (y)? ")
-                if y == "y":
-                    turn = self.gs.current_player.ai.get_move(self.gs.duplicate())
-                else:
-                    break
-            self.refresh()
+    def get_ai_move(self, verbose=True):
+        ai = self.gs.current_player.ai
+        if ai:
+            if verbose:
+                print "ai exists for player", self.gs.current_player_num,
+            if ai.thread_started:
+                if verbose:
+                    print "and thread",
+                t = ai.get_threaded_move()
+                if t:
+                    if verbose:
+                        print "is done!"
+                    if not self.exec_wrapper(t, True):
+                        print "\n################"
+                        print   "### AI ERROR ###"
+                        print   "################\n"
+                    else:
+                        self.refresh()
+                elif verbose:
+                    print "has started but hasn't finished yet..."
+            else:
+                if verbose:
+                    print "but thread hasn't started. starting now."
+                ai.get_move_thread_start(self.gs.duplicate())
     
     def draw_current_player_icon(self):
         w, h = self.canvas_dims
@@ -221,7 +254,7 @@ class TkBoard():
             y += self.LABEL_SPACING + self.LABEL_FONT_SIZE
 
     def handle_mouse_motion(self, x, y):
-        if self.game_over:
+        if self.game_over or self.gs.current_player.ai:
             return
         self.recent_x = x
         self.recent_y = y
@@ -400,8 +433,11 @@ class TkBoard():
             return
         x, y = xy
         # remove old ovals from the board
-        if not ghost and self.players[num]:
-            self.tk_canv.delete(self.players[num])
+        oval, text = self.players[num]
+        if not ghost and oval:
+            self.tk_canv.delete(oval)
+            if text:
+                self.tk_canv.delete(text)
         elif ghost and self.player_ghost:
             self.tk_canv.delete(self.player_ghost)
         # draw new
@@ -411,8 +447,11 @@ class TkBoard():
             c = TkBoard.alpha_hax(bg, c, 0.4)
         radius = self.PLAYER_SIZE/2
         oval = self.tk_canv.create_oval(x-radius, y-radius, x+radius, y+radius, fill=c, outline="")
+        text = None
+        if self.gs.players[num].ai:
+            text = self.tk_canv.create_text((x, y), text="AI", font=("Arial", 14, "bold"))
         if not ghost:
-            self.players[num] = oval
+            self.players[num] = (oval, text)
         else:
             self.player_ghost = oval
     

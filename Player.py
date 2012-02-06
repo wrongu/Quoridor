@@ -12,6 +12,7 @@ class Player:
         self.sortfunc = sortfunc
         self.available_points = []
         self.movement_history = [start_position] # entire path taken throughout the game
+        self.shortest_path_history = [] # keep track of shortest path at each turn
         self.ai = ai
     
     def push_location(self, grid_pt):

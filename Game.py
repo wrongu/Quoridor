@@ -86,6 +86,9 @@ class Game:
         self.legal_walls = []
         self.update_legal_moves()
         self.update_legal_walls()
+        self.sp_cache_stats = [0, 0] # [fast, slow] updates
+        for p in self.players:
+            self.update_shortest_path(p)
     
     def duplicate(self):
         # make new game with same state as self
@@ -161,6 +164,7 @@ class Game:
             if not is_redo:
                 self.redo_history = []
             self.history.append(turn_string)
+            self.update_shortest_path(self.current_player)
             self.next_player()
             self.update_legal_moves()
             self.update_legal_walls()
@@ -178,6 +182,7 @@ class Game:
                 self.current_player.num_walls += 1
             self.update_legal_moves()
             self.update_legal_walls()
+            self.current_player.shortest_path_history.pop()
     
     def redo(self):
         if len(self.redo_history) > 0:
@@ -209,13 +214,16 @@ class Game:
     def get_shortest_path(self, start, end):
         return self.graph.findPathBreadthFirst(start, end)
 
-    def get_shortest_path_player(self, player):
+    def get_shortest_path_player(self, player, force_bfs=False):
         p = player
-        bfs_tree = self.graph.build_BFS_tree(p.position)
-        paths = [self.graph.pathFromBFSTree(bfs_tree, p.position, g) for g in p.goal_positions]
-        paths = filter(lambda p: p is not None, paths)
-        paths = sorted(paths, cmp = lambda a, b: len(a)-len(b))
-        return paths[0]
+        if force_bfs or len(p.shortest_path_history) == 0:
+            bfs_tree = self.graph.build_BFS_tree(p.position)
+            paths = [self.graph.pathFromBFSTree(bfs_tree, p.position, g) for g in p.goal_positions]
+            paths = filter(lambda p: p is not None, paths)
+            paths = sorted(paths, cmp = lambda a, b: len(a)-len(b))
+            return paths[0]
+        else:
+            return p.shortest_path_history[-1]
 
     def path_exists(self, player_num):
         player = self.get_player_by_num(player_num)
@@ -233,6 +241,32 @@ class Game:
         all_w = filter(lambda w: self.wall_is_valid(w), all_w)
         self.legal_walls = all_w
         #print "legal walls updated to:", self.legal_walls
+    
+    def update_shortest_path(self, player):
+        recent_sp = []
+        if player.shortest_path_history:
+            recent_sp = player.shortest_path_history[-1]
+        if recent_sp:
+            if player.position == recent_sp[1]:
+                # fast
+                self.sp_cache_stats[0] += 1
+                player.shortest_path_history.append(recent_sp[1:])
+            elif player.position == recent_sp[0]:
+                # p hasn't moved - check if sp is still clear
+                for i in range(len(recent_sp)-1):
+                    e = (recent_sp[i], recent_sp[i+1], 1)
+                    if not self.graph.hasEdge(e):
+                        # path interrupted by new wall
+                        self.sp_cache_stats[1] += 1
+                        player.shortest_path_history.append(self.get_shortest_path_player(player, True))
+                        return
+                # path still clear, therefore still shortest. no change!
+                self.sp_cache_stats[0] += 1
+                player.shortest_path_history.append(recent_sp)
+        else:
+            # slow
+            self.sp_cache_stats[1] += 1
+            player.shortest_path_history.append(self.get_shortest_path_player(player, True))
 
     def turn_is_valid(self, turn_string, type=""):
         if type and type == "move":
