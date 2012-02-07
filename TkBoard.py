@@ -125,7 +125,7 @@ class TkBoard():
     def handle_quit(self):
         self.thread_kill = True
         for p in self.gs.players:
-            if p.ai and p.ai.thread_started:
+            if p.ai:
                 p.ai.kill_thread()
         self.tk_root.destroy()
     
@@ -157,10 +157,11 @@ class TkBoard():
                         print "\n################"
                         print   "### AI ERROR ###"
                         print   "################\n"
+                        self.handle_quit()
                     else:
                         self.refresh()
                 elif verbose:
-                    print "has started but hasn't finished yet..."
+                    print "has started but hasn't finished yet"
             else:
                 if verbose:
                     print "but thread hasn't started. starting now."
@@ -231,7 +232,7 @@ class TkBoard():
     
     def undo(self):
         self.gs.undo()
-        self.refresh()
+        self.refresh(False)
         self.game_over = False
     def redo(self):
         self.gs.redo()

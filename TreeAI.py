@@ -26,7 +26,7 @@ class TreeAI():
         """return naive score for game state based on # of walls and path lengths only.
         higher score corresponds to better position
         
-        (diff in # of walls) * (1-weight) + (diff in path lengths) * weight
+        (diff in # of walls) * weights[0] + (diff in path lengths) * weights[1]
         """
         # walls score
         other_players = [p for p in game_state.players if p != player]
@@ -39,11 +39,12 @@ class TreeAI():
         paths_diff = their_path - my_path
         
         return weights[0]*walls_diff + weights[1]*paths_diff
-    
+
     def get_move_thread_start(self, *args, **kargs):
-        self.thread_started = True
-        th = Thread(target=lambda:self.get_move(*args, **kargs))
-        th.start()
+        if not self.thread_started:
+            self.thread_started = True
+            th = Thread(target=lambda:self.get_move(*args, **kargs))
+            th.start()
     
     def kill_thread(self):
         self.kill = True
@@ -59,9 +60,13 @@ class TreeAI():
       
     def get_move(self, game_state_copy):
         print "AI: GET_MOVE CALLED"
-        print "sleeping to let game state update.."
-        sleep(0.1)
+        #print "sleeping to let game state update.."
+        #sleep(0.1)
         gs = game_state_copy
+        if not gs.current_player.ai:
+            print "WTF, mate? i'm not AI"
+            self.threaded_turn = ""
+            return ""
         #all_plies = gs.legal_moves + gs.legal_walls
         self.PLY_COUNT = 0
         tstart = time()
@@ -77,11 +82,12 @@ class TreeAI():
             print "------------------"
             gs.undo()
         """
-        best_score, best_plies = self.NegaMax(gs, gs.current_player)
+        #best_score, best_plies = self.NegaMax(gs, gs.current_player)
+        best_score, best_plies = self.AlphaBeta(gs, gs.current_player, depth=3)
         if best_plies:
             # now sort by score
             chosen_ply = random.choice(best_plies)
-            print "analyzed %d positions in %f minutes" % (self.PLY_COUNT, (time()-tstart)/60.0)
+            print "analyzed %d positions in %f seconds" % (self.PLY_COUNT, (time()-tstart))
             print "Chosen Move is %s with score %f" % (chosen_ply, best_score)
             if len(best_plies) > 1:
                 print "All moves with same score are:"
@@ -106,16 +112,17 @@ class TreeAI():
             return minmax * self.score_func(gs, player), []
         #all_plies = gs.legal_moves + gs.legal_walls
         all_plies = TreeAI.get_relevant_plies(gs, True)
-        all_scores = [-minmax * TreeAI.INF] * len(all_plies)
+        all_scores = [-TreeAI.INF] * len(all_plies)
         for i in range(len(all_plies)):
             if self.kill or (timeout and time()-start_time > timeout):
-                return -TreeAI.INF, None
+                return -TreeAI.INF, []
             ply = all_plies[i]
             gs.execute_turn(ply)
             print "(%-3d of %-3d)%s%s" % (i+1, len(all_plies), print_space, ply)
             ply_score, _ = self.NegaMax(gs, player, -minmax, depth-1, timeout, start_time, print_space+"   ")
-            all_scores[i] = ply_score
+            ply_score = -ply_score
             gs.undo()
+            all_scores[i] = ply_score
         
         # all in list with max first
         score_ply = sorted(zip(all_scores, all_plies), reverse=True)
@@ -125,9 +132,42 @@ class TreeAI():
         # return best score and list of all plies with that score
         return (best_score, best_plies)
     
-    def AlphaBeta(self, game_state_copy, minmax=-1, depth=1, timeout=None, start_time=None, print_space=" "):
-        # TODO
-        pass
+    def AlphaBeta(self, game_state_copy, player, alpha=-INF, beta=INF, minmax=1, depth=2, timeout=None, start_time=None, print_space=" "):
+        """Alpha-Beta Pruning implementation (on NegaMax)
+        
+        Note: only for 2-player
+        """
+        gs = game_state_copy
+        if not start_time:
+            start_time = time()
+        if depth == 0:
+            self.PLY_COUNT += 1
+            return minmax * self.score_func(gs, player), []
+        #all_plies = gs.legal_moves + gs.legal_walls
+        all_plies = TreeAI.get_relevant_plies(gs, True)
+        all_scores = [-TreeAI.INF] * len(all_plies)
+        for i in range(len(all_plies)):
+            if self.kill or (timeout and time()-start_time > timeout):
+                return -TreeAI.INF, []
+            ply = all_plies[i]
+            gs.execute_turn(ply)
+            print "(%-3d of %-3d)%s%s" % (i+1, len(all_plies), print_space, ply)
+            ply_score, _ = self.AlphaBeta(gs, player, -beta, -alpha, -minmax, depth-1, timeout, start_time, print_space+"   ")
+            ply_score = -ply_score
+            gs.undo()
+            all_scores[i] = ply_score
+            if ply_score > alpha:
+                alpha = ply_score
+            if alpha >= beta:
+                break
+        
+        # all in list with max first
+        score_ply = sorted(zip(all_scores, all_plies), reverse=True)
+        (best_score, _) = score_ply[0]
+        best_plies = [p for s, p in score_ply if s == best_score]
+        
+        # return best score and list of all plies with that score
+        return (best_score, best_plies)
     
     @staticmethod
     def get_relevant_plies(game_state_copy, verbose=False):

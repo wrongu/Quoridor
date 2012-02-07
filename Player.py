@@ -15,6 +15,13 @@ class Player:
         self.shortest_path_history = [] # keep track of shortest path at each turn
         self.ai = ai
     
+    def duplicate(self):
+        new_p = Player(self.position, self.goal_positions,self.num_walls, self.name, self.sortfunc, self.ai)
+        new_p.available_points = self.available_points
+        new_p.movement_history = self.movement_history
+        new_p.shortest_path_history = self.shortest_path_history
+        return new_p
+    
     def push_location(self, grid_pt):
         self.movement_history.append(self.position)
         self.position = grid_pt

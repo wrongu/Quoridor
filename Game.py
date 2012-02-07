@@ -68,7 +68,7 @@ class Game:
             raise Exception("cannot have more ai than players")
             
         cpn = random.randint(1,num_players)
-        self.starting_player = cpn # never forget who started!
+        self.starting_player_num = cpn # never forget who started!
         self.current_player_num = cpn
         self.current_player = self.players[cpn-1]
         self.other_players = [p for p in self.players if p != self.current_player]
@@ -94,12 +94,14 @@ class Game:
         # make new game with same state as self
         #   this copy game should be passed to AI n' stuff so they can't actually do any damage
         new_gs = Game(len(self.players))
-        cpn = self.starting_player
+        for i in range(len(self.players)):
+            new_gs.players[i].ai = self.players[i].ai
+        cpn = self.starting_player_num
+        new_gs.starting_player_num = cpn
         new_gs.current_player_num = cpn
         new_gs.current_player = new_gs.players[cpn-1]
         new_gs.other_players = [p for p in new_gs.players if p != new_gs.current_player]
         new_gs.replay(self.history)
-        
         return new_gs
 
     def next_player(self):
@@ -263,6 +265,10 @@ class Game:
                 # path still clear, therefore still shortest. no change!
                 self.sp_cache_stats[0] += 1
                 player.shortest_path_history.append(recent_sp)
+            else:
+                # slow
+                self.sp_cache_stats[1] += 1
+                player.shortest_path_history.append(self.get_shortest_path_player(player, True))
         else:
             # slow
             self.sp_cache_stats[1] += 1
@@ -364,7 +370,7 @@ class Game:
             current_turn = history_list[i]
             #print "turn", i
             if not self.execute_turn(current_turn):
-                print "replay :: on turn", i, "invalid move:", current_turn
+                print "replay :: on turn", i+1, "invalid move:", current_turn
                 break
             # TODO: draw and pause?
         #print "Replay Done"
