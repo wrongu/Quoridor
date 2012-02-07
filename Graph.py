@@ -23,7 +23,7 @@ class Graph:
     is a list of tuples, where each tuple contains (next_node, weight)
     """
     
-    def __init__(self, nodes=[], edges=[], graph_in={}, directed=True):
+    def __init__(self, nodes=[], edges=[], graph_in=None, directed=True):
         """Constructor.
         
         if input is list of nodes and list of edges, add each node
@@ -34,8 +34,10 @@ class Graph:
         if not directed, edges are added in both directions
         """
         
-        # self.graph_dict = graph_in
         self.graph_dict = {}
+        if graph_in:
+            for k, v in graph_in.graph_dict.iteritems():
+                self.graph_dict[k] = v
         
         # loop through all edges. add both nodes and weight.
         for e in edges:

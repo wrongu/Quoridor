@@ -1,3 +1,5 @@
+import Helpers as h
+
 class Player:
     """Small Class for a Quoridor Player
     
@@ -12,14 +14,16 @@ class Player:
         self.sortfunc = sortfunc
         self.available_points = []
         self.movement_history = [start_position] # entire path taken throughout the game
-        self.shortest_path_history = [] # keep track of shortest path at each turn
+        self.shortest_path = [] # keep track of shortest path at each turn
         self.ai = ai
     
-    def duplicate(self):
-        new_p = Player(self.position, self.goal_positions,self.num_walls, self.name, self.sortfunc, self.ai)
-        new_p.available_points = self.available_points
-        new_p.movement_history = self.movement_history
-        new_p.shortest_path_history = self.shortest_path_history
+    def duplicate(self, new=False):
+        new_p = Player(self.position, h.list_copy(self.goal_positions),\
+                        self.num_walls, self.name, self.sortfunc, self.ai)
+        if not new:
+            new_p.available_points = h.list_copy(self.available_points)
+            new_p.movement_history = h.list_copy(self.movement_history)
+            new_p.shortest_path = h.list_copy(self.shortest_path)
         return new_p
     
     def push_location(self, grid_pt):
@@ -46,11 +50,3 @@ class Player:
         
     def get_goals(self):
         return self.goal_positions
-    
-    def duplicate(self):
-        return Player(
-            self.position,
-            self.goals,
-            self.num_walls,
-            self.name
-            )

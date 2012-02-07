@@ -1,7 +1,7 @@
 from Tkinter import *
 from math import floor
 import Game as QG
-import Helpers as helpers
+import Helpers as h
 from sys import argv
 from time import sleep
 from threading import Thread
@@ -168,8 +168,8 @@ class TkBoard():
                 ai.get_move_thread_start(self.gs.duplicate())
     
     def draw_current_player_icon(self):
-        w, h = self.canvas_dims
-        midx = w - self.PANEL_WIDTH/2
+        width, height = self.canvas_dims
+        midx = width - self.PANEL_WIDTH/2
         radius = self.PLAYER_SIZE/2
         x0, x1 = midx - radius, midx + radius
         y0, y1 = self.ICON_MARGIN - radius, self.ICON_MARGIN + radius
@@ -206,10 +206,10 @@ class TkBoard():
     
     def draw_panel(self):
         # panel bg
-        w, h = self.canvas_dims
-        midx = w-self.PANEL_WIDTH/2
+        width, height = self.canvas_dims
+        midx = width-self.PANEL_WIDTH/2
         c = self.DEFAULT_COLORS['panel']
-        self.tk_canv.create_rectangle(w-self.PANEL_WIDTH, 0, w, h, fill=c)
+        self.tk_canv.create_rectangle(width-self.PANEL_WIDTH, 0, width, height, fill=c)
         # current-player icon @ top
         self.draw_current_player_icon()
         # buttons!
@@ -239,8 +239,8 @@ class TkBoard():
         self.refresh()
     
     def draw_wall_counts(self):
-        w, h = self.canvas_dims
-        midx = w - self.PANEL_WIDTH/2
+        width, height = self.canvas_dims
+        midx = width - self.PANEL_WIDTH/2
         y = self.LABEL_Y_START
         for i in range(len(self.gs.players)):
             p = self.gs.players[i]
@@ -261,7 +261,7 @@ class TkBoard():
         self.recent_y = y
         grid = self.point_to_grid((x,y))
         if grid and self.moveType == "move":
-            move_str = helpers.point_to_notation(grid)
+            move_str = h.point_to_notation(grid)
             if move_str != self.active_move:
                 self.active_move = move_str
                 if self.gs.turn_is_valid(move_str, "move"):
@@ -272,7 +272,7 @@ class TkBoard():
             
         elif grid and self.moveType == "wall":
             orient, topleft = self.xy_to_wall_spec(grid, x, y)
-            pos = helpers.point_to_notation(topleft)
+            pos = h.point_to_notation(topleft)
             wall_str = orient+pos
             if wall_str != self.active_wall:
                 self.active_wall = wall_str
@@ -294,11 +294,11 @@ class TkBoard():
         grid = self.point_to_grid((x,y))
         success = False
         if grid and self.moveType == "move":
-            move_str = helpers.point_to_notation(grid)
+            move_str = h.point_to_notation(grid)
             success = self.exec_wrapper(move_str)
         elif grid and self.moveType == "wall":
             orient, topleft = self.xy_to_wall_spec(grid, x, y)
-            pos = helpers.point_to_notation(topleft)
+            pos = h.point_to_notation(topleft)
             wall_str = orient+pos
             success = self.exec_wrapper(wall_str)
         if success:
@@ -314,7 +314,7 @@ class TkBoard():
             cr -= 1
         elif key == "D":
             cr += 1
-        move_str = helpers.point_to_notation((cr, cc))
+        move_str = h.point_to_notation((cr, cc))
         success = self.exec_wrapper(move_str)
         if success:
             self.refresh()
@@ -376,7 +376,7 @@ class TkBoard():
                 self.squares[r][c] = sq
     
     def generate_walls(self):
-        for w in helpers.all_walls():
+        for w in h.all_walls():
             (x0, y0, x1, y1) = self.wall_str_to_coords(w)
             # regular wall
             r = self.tk_canv.create_rectangle(x0, y0, x1, y1, fill="", outline="")
@@ -403,7 +403,7 @@ class TkBoard():
         return (orient, (gr, gc))
     
     def wall_str_to_coords(self, wall_str):
-        grid_pos = helpers.notation_to_point(wall_str[1:])
+        grid_pos = h.notation_to_point(wall_str[1:])
         orient = wall_str[0]
         cx, cy = self.grid_to_point(grid_pos)
         wall_len = 2*self.SQUARE_SIZE + self.SQUARE_SPACING

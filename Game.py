@@ -2,12 +2,14 @@
 # Modules for player, graph, interaction, graphics, or AI done separately.
 
 import SpecialGraphs
+from Graph import Graph
 from Player import Player
 import string
-import Helpers as helpers
+import Helpers as h
 import random
 from TreeAI import TreeAI
 from pprint import pprint 
+from Helpers import global_stats
 
 class Exception(Exception):
     pass
@@ -34,18 +36,19 @@ class Game:
     NOTATION:
         While grid points are represented as a tuple of two numbers, the actual game notation uses letters for columns. 1-9 becomes a-i        
             (1,1) --> 1a
-            (5,5) --> 5e
+            (2,7) --> 2g
             (9,9) --> 9i
         
         A *move* is denoted by the notated-form of the destination. Moving from 3b to 3c is just "3c"
         A *wall* is denoted with a 3-character string. The first character is "H" or "V" for Horizontal or Vertical walls
-            -horizontal walls lie along a row and span 2 columns
-            -vertical walls lie alonga column and span 2 rows
+            -horizontal walls lie between rows and span 2 columns
+            -vertical walls lie between columns and span 2 rows
 
             the other 2 characters specify the point of the top-left corner of the wall (lowest row, lowest col)
             - must be between (1,1) and (8,8), or 1a and 8h
         
         visuals! (I suggest viewing with a fixed-width font)
+        horizontal  vertical
         A  B        A || B
         ====          ||
         C  D        C || D
@@ -54,54 +57,69 @@ class Game:
         
     """
     
-    def __init__(self, num_players = 2, num_ai = 0):
-        self.history = []
-        self.redo_history = []
-        # players: 2 or 4
-        if num_players == 2:
-            self.players = helpers.make_2_players()
-        elif num_players == 4:
-            self.players = helpers.make_4_players()
-        else:
-            raise Exception("invalid number of players: {0}".format(num_players))
-        if num_ai > num_players:
-            raise Exception("cannot have more ai than players")
-            
-        cpn = random.randint(1,num_players)
-        self.starting_player_num = cpn # never forget who started!
-        self.current_player_num = cpn
-        self.current_player = self.players[cpn-1]
-        self.other_players = [p for p in self.players if p != self.current_player]
-        all_inds = range(len(self.players))
-        while num_ai > 0:
-            ai_player = random.choice(all_inds)
-            self.players[ai_player].ai = TreeAI()
-            all_inds.remove(ai_player)
-            num_ai -= 1
+    def __init__(self, num_players=2, num_ai=0, duplicate=False):
+        self.history             = []
+        self.redo_history        = []
+        self.players             = None
+        self.starting_player_num = 1
+        self.current_player_num  = 1
+        self.current_player      = None
+        self.other_players       = None
         # special graph for grid
-        self.graph = SpecialGraphs.GraphNet(9,9)
+        self.graph               = None
         # initially no walls
-        self.walls = []
-        self.legal_moves = []
-        self.legal_walls = []
-        self.update_legal_moves()
-        self.update_legal_walls()
-        self.sp_cache_stats = [0, 0] # [fast, slow] updates
-        for p in self.players:
-            self.update_shortest_path(p)
+        self.walls               = []
+        self.legal_moves         = []
+        self.legal_walls         = []
+        
+        if not duplicate:
+            # players: 2 or 4
+            if num_players == 2:
+                self.players = h.make_2_players()
+            elif num_players == 4:
+                self.players = h.make_4_players()
+            else:
+                raise Exception("invalid number of players: {0}".format(num_players))
+            if num_ai > num_players:
+                raise Exception("cannot have more ai than players")
+            
+            self.graph = SpecialGraphs.GraphNet(9,9)
+            
+            cpn = random.randint(1,num_players)
+            #self.starting_player_num = cpn # never forget who started!
+            self.current_player_num = cpn
+            self.current_player = self.players[cpn-1]
+            self.other_players = [p for p in self.players if p != self.current_player]
+            all_inds = range(len(self.players))
+            while num_ai > 0:
+                ai_player = random.choice(all_inds)
+                self.players[ai_player].ai = TreeAI()
+                all_inds.remove(ai_player)
+                num_ai -= 1
+            self.update_legal_moves()
+            self.update_legal_walls()
+            for p in self.players:
+                self.update_shortest_path(p)
     
     def duplicate(self):
         # make new game with same state as self
         #   this copy game should be passed to AI n' stuff so they can't actually do any damage
-        new_gs = Game(len(self.players))
-        for i in range(len(self.players)):
-            new_gs.players[i].ai = self.players[i].ai
-        cpn = self.starting_player_num
-        new_gs.starting_player_num = cpn
-        new_gs.current_player_num = cpn
-        new_gs.current_player = new_gs.players[cpn-1]
-        new_gs.other_players = [p for p in new_gs.players if p != new_gs.current_player]
-        new_gs.replay(self.history)
+        new_gs = Game(len(self.players), duplicate=True)
+        
+        new_gs.history             = h.list_copy(self.history)
+        new_gs.redo_history        = h.list_copy(self.redo_history)
+        new_gs.players             = [p.duplicate() for p in self.players]
+        #new_gs.starting_player_num = self.starting_player_num
+        new_gs.current_player_num  = self.current_player_num
+        new_gs.current_player      = new_gs.players[new_gs.current_player_num-1]
+        new_gs.other_players       = [p for p in new_gs.players if p != new_gs.current_player]
+        # special graph for grid
+        new_gs.graph               = Graph(graph_in = self.graph)
+        # initially no walls
+        new_gs.walls               = h.list_copy(self.walls)
+        new_gs.legal_moves         = h.list_copy(self.legal_moves)
+        new_gs.legal_walls         = h.list_copy(self.legal_walls)
+        
         return new_gs
 
     def next_player(self):
@@ -130,7 +148,7 @@ class Game:
         return self.players[num-1]
         
     # TODO - if not a redo, clear redo hist
-    def execute_turn(self, turn_string, is_redo=False):
+    def execute_turn(self, turn_string, is_redo=False, verify_legal=True):
         """Given turn (move or wall) in official string notation,
         
         update internal state if move is valid and swap players
@@ -144,20 +162,28 @@ class Game:
                 pass
             print "winner:", current_player.name
         """
-        w_valid = self.turn_is_valid(turn_string, type="wall")
-        m_valid = self.turn_is_valid(turn_string, type="move")
-        #print "\twall valid?", w_valid,"\n\tmove valid?", m_valid
-        if w_valid:
-            #print "\twalled successfully"
-            self.add_wall(turn_string)
-            self.current_player.use_wall()
-        elif m_valid:
-            #print "\tmoved successfully"
-            self.do_move(turn_string)
+        if verify_legal:
+            w_valid = self.turn_is_valid(turn_string, type="wall")
+            m_valid = self.turn_is_valid(turn_string, type="move")
+            #print "\twall valid?", w_valid,"\n\tmove valid?", m_valid
+            if w_valid:
+                #print "\twalled successfully"
+                self.add_wall(turn_string)
+                self.current_player.use_wall()
+            elif m_valid:
+                #print "\tmoved successfully"
+                self.do_move(turn_string)
+            else:
+                #print "execution failed"
+                #raise Exception("invalid turn string given to execute_turn()")
+                return 0
         else:
-            #print "execution failed"
-            #raise Exception("invalid turn string given to execute_turn()")
-            return 0
+            # no verifications
+            if len(turn_string) == 2:
+                self.do_move(turn_string)
+            elif len(turn_string) == 3:
+                self.add_wall(turn_string)
+        
         # check for win
         if self.current_player.position in self.current_player.goal_positions:
             return 2
@@ -165,11 +191,12 @@ class Game:
         else:
             if not is_redo:
                 self.redo_history = []
+            # time consuming to do all this updating and checking
+            #   if not verify, don't update.
+            if verify_legal:
+                self.update_all([self.current_player])
             self.history.append(turn_string)
-            self.update_shortest_path(self.current_player)
             self.next_player()
-            self.update_legal_moves()
-            self.update_legal_walls()
             return 1
     
     def undo(self):
@@ -179,12 +206,12 @@ class Game:
             self.redo_history.append(turn)
             if len(turn) == 2:
                 self.current_player.pop_location()
+                self.update_shortest_path(self.current_player)
             elif len(turn) == 3:
                 self.remove_wall(turn)
                 self.current_player.num_walls += 1
             self.update_legal_moves()
             self.update_legal_walls()
-            self.current_player.shortest_path_history.pop()
     
     def redo(self):
         if len(self.redo_history) > 0:
@@ -196,7 +223,7 @@ class Game:
         must run is_valid check first - no checks preformed here
         """
         self.walls.append(wall_string)
-        edge1, edge2 = helpers.wall_string_to_edges(wall_string)
+        edge1, edge2 = h.wall_string_to_edges(wall_string)
         self.graph.removeEdge(edge1, directed=False)
         self.graph.removeEdge(edge2, directed=False)
         if playernum:
@@ -206,73 +233,74 @@ class Game:
         # same as add_wall function but adds in edges where adding walls
         #   removes edges
         self.walls.pop()
-        edge1, edge2 = helpers.wall_string_to_edges(wall_string)
+        edge1, edge2 = h.wall_string_to_edges(wall_string)
         self.graph.addEdge(edge1, directed=False)
         self.graph.addEdge(edge2, directed=False)
                 
     def do_move(self, move_string):
-        self.current_player.push_location(helpers.notation_to_point(move_string))
+        self.current_player.push_location(h.notation_to_point(move_string))
 
     def get_shortest_path(self, start, end):
         return self.graph.findPathBreadthFirst(start, end)
 
     def get_shortest_path_player(self, player, force_bfs=False):
         p = player
-        if force_bfs or len(p.shortest_path_history) == 0:
+        if force_bfs or not p.shortest_path:
             bfs_tree = self.graph.build_BFS_tree(p.position)
             paths = [self.graph.pathFromBFSTree(bfs_tree, p.position, g) for g in p.goal_positions]
             paths = filter(lambda p: p is not None, paths)
             paths = sorted(paths, cmp = lambda a, b: len(a)-len(b))
             return paths[0]
         else:
-            return p.shortest_path_history[-1]
+            return p.shortest_path
 
     def path_exists(self, player_num):
         player = self.get_player_by_num(player_num)
         return self.graph.findPathDepthFirst(player.position, player.goal_positions, player.sortfunc) is not None
 
+    def update_all(self, player_list=None):
+        for p in player_list:
+            self.update_shortest_path(p)
+        self.update_legal_moves()
+        self.update_legal_walls()
+    
     def update_legal_moves(self):
         self.update_available_points()
         legal_pts = self.current_player.available_points
-        self.legal_moves = [helpers.point_to_notation(p) for p in legal_pts]
+        self.legal_moves = [h.point_to_notation(p) for p in legal_pts]
         #print "legal moves updated to:", self.legal_moves
 
     def update_legal_walls(self):
-        all_w = helpers.all_walls()
+        all_w = h.all_walls()
         all_w = [w for w in all_w if w not in self.walls]
         all_w = filter(lambda w: self.wall_is_valid(w), all_w)
         self.legal_walls = all_w
         #print "legal walls updated to:", self.legal_walls
     
     def update_shortest_path(self, player):
-        recent_sp = []
-        if player.shortest_path_history:
-            recent_sp = player.shortest_path_history[-1]
-        if recent_sp:
-            if player.position == recent_sp[1]:
-                # fast
-                self.sp_cache_stats[0] += 1
-                player.shortest_path_history.append(recent_sp[1:])
-            elif player.position == recent_sp[0]:
+        sp = player.shortest_path
+        recalc_path = True
+        if sp:
+            if player.position == sp[1]:
+                # player moved one step along shortest path.
+                #   new shortest path is same as previous, starting 1 farther along
+                player.shortest_path = sp[1:]
+                recalc_path = False
+            elif player.position == sp[0]:
                 # p hasn't moved - check if sp is still clear
-                for i in range(len(recent_sp)-1):
-                    e = (recent_sp[i], recent_sp[i+1], 1)
+                for i in range(len(sp)-1):
+                    e = (sp[i], sp[i+1], 1)
                     if not self.graph.hasEdge(e):
                         # path interrupted by new wall
-                        self.sp_cache_stats[1] += 1
-                        player.shortest_path_history.append(self.get_shortest_path_player(player, True))
-                        return
+                        break
                 # path still clear, therefore still shortest. no change!
-                self.sp_cache_stats[0] += 1
-                player.shortest_path_history.append(recent_sp)
-            else:
-                # slow
-                self.sp_cache_stats[1] += 1
-                player.shortest_path_history.append(self.get_shortest_path_player(player, True))
+                recalc_path = False
+        
+        if recalc_path:
+            player.shortest_path = self.get_shortest_path_player(player)
+            h.increment_int_stat('sp-slow-updates')
         else:
-            # slow
-            self.sp_cache_stats[1] += 1
-            player.shortest_path_history.append(self.get_shortest_path_player(player, True))
+            h.increment_int_stat('sp-fast-updates')
 
     def turn_is_valid(self, turn_string, type=""):
         if type and type == "move":
@@ -282,17 +310,6 @@ class Game:
         else:
             return (turn_string in (self.legal_walls + self.legal_moves))
     
-    """
-    def move_is_valid(self, move_string):
-        try:
-            available_points = self.current_player.available_points
-            if not available_points:
-                self.update_available_points()
-            return helpers.notation_to_point(move_string) in self.current_payer.available_points
-        except:
-            return False
-    """
-        
     def update_available_points(self):
         player = self.current_player
         other_players = self.other_players
@@ -331,7 +348,7 @@ class Game:
             #print "\tprocessing turn: wall"
             wall_type = wall_string[0]
             
-            edge1, edge2 = helpers.wall_string_to_edges(wall_string)
+            edge1, edge2 = h.wall_string_to_edges(wall_string)
             (r1, c1), (r2, c2) = edge1, edge2
             topleft = (min(r1,r2), min(c1,c2))
             
@@ -364,13 +381,10 @@ class Game:
             print "exceptional problems (wall is valid):", str(e)
             return False
 
-    def replay(self, history_list):
-        for i in range (len(history_list)):
-            # execute. if not successful, break.
-            current_turn = history_list[i]
-            #print "turn", i
-            if not self.execute_turn(current_turn):
-                print "replay :: on turn", i+1, "invalid move:", current_turn
+    def replay(self, history_list, verify=True):
+        for turn in history_list:
+            success = self.execute_turn(turn, verify_legal=verify)
+            if verify and not success:
+                print "REPLAY FAIL: " + turn
                 break
-            # TODO: draw and pause?
-        #print "Replay Done"
+        self.update_all(self.players)

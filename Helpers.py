@@ -1,12 +1,25 @@
 # Helper functions
 # Includes functions for dealing with legal moves,
+#   global stats,
 #   converting to/from notation/geometry, and
 #   making new players
 
 import Game, SpecialGraphs
-from Player import Player
 import string
 
+global_stats = {}
+
+def increment_int_stat(name, default=1):
+    if name in global_stats:
+        global_stats[name] += 1
+    else:
+        global_stats[name] = default
+
+def append_stat(name, val):
+    if name in global_stats:
+        global_stats[name].append(val)
+    else:
+        global_stats[name] = [val]
 
 ########################
 ## Notation functions ##
@@ -108,6 +121,7 @@ def filter_legal_turns(game_state, turns):
 ########################
 
 def make_2_players(name1="", name2=""):
+    from Player import Player
     # definitions of start and goales for 2 players, all stated explicitly
     
     # player 1: 
@@ -122,6 +136,7 @@ def make_2_players(name1="", name2=""):
     return [player1, player2]
     
 def make_4_players(name1="", name2="", name3="", name4=""):
+    from Player import Player
     # definitions of start and goales for 2 players, all stated explicitly
     
     # player 1: 
@@ -143,3 +158,9 @@ def make_4_players(name1="", name2="", name3="", name4=""):
     # return list of players, in order
     return [player1, player2, player3, player4]
     
+#####################
+## Other Utilities ##
+#####################
+
+def list_copy(L):
+    return [item for item in L]
