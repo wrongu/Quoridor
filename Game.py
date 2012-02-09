@@ -58,8 +58,10 @@ class Game:
     """
     
     def __init__(self, num_players=2, num_ai=0, duplicate=False):
+        # undo/redo as list of turn strings
         self.history             = []
         self.redo_history        = []
+        # players
         self.players             = None
         self.starting_player_num = 1
         self.current_player_num  = 1
@@ -243,14 +245,17 @@ class Game:
     def get_shortest_path(self, start, end):
         return self.graph.findPathBreadthFirst(start, end)
 
-    def get_shortest_path_player(self, player, force_bfs=False):
+    def get_shortest_path_player(self, player, force_recalc=False):
         p = player
-        if force_bfs or not p.shortest_path:
-            bfs_tree = self.graph.build_BFS_tree(p.position)
-            paths = [self.graph.pathFromBFSTree(bfs_tree, p.position, g) for g in p.goal_positions]
-            paths = filter(lambda p: p is not None, paths)
-            paths = sorted(paths, cmp = lambda a, b: len(a)-len(b))
-            return paths[0]
+        if force_recalc or not p.shortest_path:
+            if len(self.walls) == 0:
+                return self.graph.findPathDepthFirst(player.position, player.goal_positions, player.sortfunc)
+            else:
+                bfs_tree = self.graph.build_BFS_tree(p.position)
+                paths = [self.graph.pathFromBFSTree(bfs_tree, p.position, g) for g in p.goal_positions]
+                paths = filter(lambda p: p is not None, paths)
+                paths = sorted(paths, cmp = lambda a, b: len(a)-len(b))
+                return paths[0]
         else:
             return p.shortest_path
 
@@ -281,23 +286,26 @@ class Game:
         sp = player.shortest_path
         recalc_path = True
         if sp:
-            if player.position == sp[1]:
+            if len(sp) > 1 and player.position == sp[1]:
                 # player moved one step along shortest path.
                 #   new shortest path is same as previous, starting 1 farther along
                 player.shortest_path = sp[1:]
                 recalc_path = False
             elif player.position == sp[0]:
                 # p hasn't moved - check if sp is still clear
+                broken = False
                 for i in range(len(sp)-1):
                     e = (sp[i], sp[i+1], 1)
                     if not self.graph.hasEdge(e):
                         # path interrupted by new wall
+                        broken = True
                         break
                 # path still clear, therefore still shortest. no change!
-                recalc_path = False
+                if not broken:
+                    recalc_path = False
         
         if recalc_path:
-            player.shortest_path = self.get_shortest_path_player(player)
+            player.shortest_path = self.get_shortest_path_player(player, True)
             h.increment_int_stat('sp-slow-updates')
         else:
             h.increment_int_stat('sp-fast-updates')

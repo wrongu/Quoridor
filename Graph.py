@@ -139,20 +139,21 @@ class Graph:
         
         closed_nodes = []
         cur_node = startnode
-        path = [startnode]
-        success = cur_node in goalnodes
-        while not success:  
-#            print "DFS cur =", cur_node
+        path = [cur_node]
+        # cur node is always path[-1]
+        while not cur_node in goalnodes:  
+            # print "DFS cur =", cur_node
             # select next
             next_nodes = self.get_adj_nodes(cur_node)
             next_nodes = [node for node in next_nodes if node not in closed_nodes+path]
             # if no options, back up and add current node to list of closed
             if len(next_nodes) == 0:
                 closed_nodes.append(cur_node)
-                if len(path) == 0:
-                    break
+                if len(path) <= 1:
+                    return None
                 else:                    
-                    cur_node = path.pop()
+                    cur_node = path[-2]
+                    path.pop()
             else:
                 # if a sortfunc is given, select node with smallest dist to goalnodes
                 if sortfunc:
@@ -167,18 +168,12 @@ class Graph:
                     next_node = min_node
                 else:
                     next_node = next_nodes[0]
-                # update path
-                path.append(next_node)
                 # update current node
-                cur_node = next_node
-                # check success
-                success = cur_node in goalnodes
+                cur_node = next_node 
+               # update path
+                path.append(cur_node)
         
-        if success:
-            return path
-        else:
-            return None
-                
+        return path        
     
     # breadth-first search: use Queue of next items
     # returns path as list of nodes
