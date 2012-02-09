@@ -11,7 +11,7 @@ from TreeAI import TreeAI
 from pprint import pprint 
 from Helpers import global_stats
 
-class Exception(Exception):
+class QuoridorException(Exception):
     pass
 
 class Game:
@@ -81,9 +81,9 @@ class Game:
             elif num_players == 4:
                 self.players = h.make_4_players()
             else:
-                raise Exception("invalid number of players: {0}".format(num_players))
+                raise QuoridorException("invalid number of players: {0}".format(num_players))
             if num_ai > num_players:
-                raise Exception("cannot have more ai than players")
+                raise QuoridorException("cannot have more ai than players")
             
             self.graph = SpecialGraphs.GraphNet(9,9)
             
@@ -177,7 +177,7 @@ class Game:
                 self.do_move(turn_string)
             else:
                 #print "execution failed"
-                #raise Exception("invalid turn string given to execute_turn()")
+                #raise QuoridorException("invalid turn string given to execute_turn()")
                 return 0
         else:
             # no verifications
