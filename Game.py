@@ -98,10 +98,7 @@ class Game:
                 self.players[ai_player].ai = TreeAI()
                 all_inds.remove(ai_player)
                 num_ai -= 1
-            self.update_legal_moves()
-            self.update_legal_walls()
-            for p in self.players:
-                self.update_shortest_path(p)
+            self.update_all(self.players)
     
     def duplicate(self):
         # make new game with same state as self
@@ -185,6 +182,7 @@ class Game:
                 self.do_move(turn_string)
             elif len(turn_string) == 3:
                 self.add_wall(turn_string)
+                self.current_player.use_wall()
         
         # check for win
         if self.current_player.position in self.current_player.goal_positions:
@@ -195,10 +193,11 @@ class Game:
                 self.redo_history = []
             # time consuming to do all this updating and checking
             #   if not verify, don't update.
-            if verify_legal:
-                self.update_all([self.current_player])
+            player_just_moved = self.current_player
             self.history.append(turn_string)
             self.next_player()
+            if verify_legal:
+                self.update_all([player_just_moved])
             return 1
     
     def undo(self):
@@ -249,12 +248,20 @@ class Game:
         p = player
         if force_recalc or not p.shortest_path:
             if len(self.walls) == 0:
-                return self.graph.findPathDepthFirst(player.position, player.goal_positions, player.sortfunc)
+                return self.graph.findPathDepthFirst(p.position, p.goal_positions, p.sortfunc)
             else:
-                bfs_tree = self.graph.build_BFS_tree(p.position)
+                bfs_tree = self.graph.build_BFS_tree(p.position, p.goal_positions)
+                #print "------------------------"
+                #print "from "+str(p.position)+" to "+str(p.goal_positions)
+                #pprint(bfs_tree)
                 paths = [self.graph.pathFromBFSTree(bfs_tree, p.position, g) for g in p.goal_positions]
-                paths = filter(lambda p: p is not None, paths)
-                paths = sorted(paths, cmp = lambda a, b: len(a)-len(b))
+                #print "-Paths, pre-filter-"
+                #pprint(paths)
+                paths = [path for path in paths if path is not None]
+                #print "-Paths, post-filter-"
+                #pprint(paths)
+                #print "history:", self.history
+                #paths = sorted(paths, cmp = lambda a, b: len(a)-len(b))
                 return paths[0]
         else:
             return p.shortest_path

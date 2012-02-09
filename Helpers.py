@@ -163,4 +163,7 @@ def make_4_players(name1="", name2="", name3="", name4=""):
 #####################
 
 def list_copy(L):
-    return [item for item in L]
+    if type(L) is list:
+        return [item for item in L]
+    else:
+        return L

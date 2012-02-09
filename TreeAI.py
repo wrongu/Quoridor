@@ -14,12 +14,13 @@ class TreeAI():
         if score_func:
             self.score_func = score_func
         elif score_weights:
-            self.score_func = lambda gs, p: TreeAI.state_score_naive(gs, p, score_weights)
+            self.score_func = lambda game_state, p: TreeAI.state_score_naive(game_state, p, score_weights)
         else:
-            self.score_func = lambda gs, p: TreeAI.state_score_naive(gs, p, self.DEFAULT_WEIGHTS)
+            self.score_func = lambda game_state, p: TreeAI.state_score_naive(game_state, p, self.DEFAULT_WEIGHTS)
         self.threaded_turn = ""
         self.thread_started = False
         self.kill = False
+        self.timer = 0
     
     @classmethod
     def state_score_naive(self, game_state, player, weights):
@@ -54,20 +55,20 @@ class TreeAI():
             turn = self.threaded_turn
             self.threaded_turn = ""
             self.thread_started = False
-            return turn
+            return turn, self.timer
         else:
-            return None
+            return None, -1
       
-    def get_move(self, game_state_copy):
+    def get_move(self, game_stack):
         print "AI: GET_MOVE CALLED"
         #print "sleeping to let game state update.."
         #sleep(0.1)
-        gs = game_state_copy
-        if not gs.current_player.ai:
+        game_state = game_stack.current
+        if not game_state.current_player.ai:
             print "WTF, mate? i'm not AI"
             self.threaded_turn = ""
             return ""
-        #all_plies = gs.legal_moves + gs.legal_walls
+        #all_plies = game_state.legal_moves + game_state.legal_walls
         self.PLY_COUNT = 0
         tstart = time()
         """
@@ -76,85 +77,90 @@ class TreeAI():
                 return ""
             ply = all_plies[i]
             print "%-5s(%d of %d)" % (ply, i+1, len(all_plies))
-            gs.execute_turn(ply)
-            scores[i] = self.NegaMax(gs)
+            game_state.execute_turn(ply)
+            scores[i] = self.NegaMax(game_state)
             print "     %f" % (scores[i])
             print "------------------"
-            gs.undo()
+            game_state.undo()
         """
-        #best_score, best_plies = self.NegaMax(gs, gs.current_player)
-        best_score, best_plies = self.AlphaBeta(gs, gs.current_player, depth=3)
+        #best_score, best_plies = self.NegaMax(game_state, game_state.current_player)
+        best_score, best_plies = self.AlphaBeta(game_stack, game_state.current_player, depth=3)
         if best_plies:
             # now sort by score
             chosen_ply = random.choice(best_plies)
-            print "analyzed %d positions in %f seconds" % (self.PLY_COUNT, (time()-tstart))
+            self.timer = (time()-tstart)
+            print "analyzed %d positions in %f seconds" % (self.PLY_COUNT, self.timer)
             print "Chosen Move is %s with score %f" % (chosen_ply, best_score)
             if len(best_plies) > 1:
                 print "All moves with same score are:"
                 for ply in best_plies:
-                    print "\t%s" % ply
-            print "---------------------------------------------"
+                    print "\t%s" % ply,
+            print "\n---------------------------------------------"
             self.threaded_turn = chosen_ply
             return chosen_ply
         else:
             return ""
     
-    def NegaMax(self, game_state_copy, player, minmax=1, depth=2, timeout=None, start_time=None, print_space=" "):
+    def NegaMax(self, game_stack, player, minmax=1, depth=2, timeout=None, start_time=None, print_space=" "):
         """Negamax implementation
         
         Note: only for 2-player
         """
-        gs = game_state_copy
+        game_state = game_stack.current
         if not start_time:
             start_time = time()
         if depth == 0:
             self.PLY_COUNT += 1
-            return minmax * self.score_func(gs, player), []
-        #all_plies = gs.legal_moves + gs.legal_walls
-        all_plies = TreeAI.get_relevant_plies(gs, True)
+            return minmax * self.score_func(game_state, player), []
+        #all_plies = game_state.legal_moves + game_state.legal_walls
+        all_plies = TreeAI.get_relevant_plies(game_state, True)
         all_scores = [-TreeAI.INF] * len(all_plies)
         for i in range(len(all_plies)):
             if self.kill or (timeout and time()-start_time > timeout):
                 return -TreeAI.INF, []
             ply = all_plies[i]
-            gs.execute_turn(ply)
+            game_stack.execute_turn(ply)
             print "(%-3d of %-3d)%s%s" % (i+1, len(all_plies), print_space, ply)
-            ply_score, _ = self.NegaMax(gs, player, -minmax, depth-1, timeout, start_time, print_space+"   ")
+            ply_score, _ = self.NegaMax(game_stack, player, -minmax, depth-1, timeout, start_time, print_space+"   ")
             ply_score = -ply_score
-            gs.undo()
+            game_stack.undo()
             all_scores[i] = ply_score
         
         # all in list with max first
         score_ply = sorted(zip(all_scores, all_plies), reverse=True)
+        if depth==3:
+            print score_ply
         (best_score, _) = score_ply[0]
         best_plies = [p for s, p in score_ply if s == best_score]
         
         # return best score and list of all plies with that score
         return (best_score, best_plies)
     
-    def AlphaBeta(self, game_state_copy, player, alpha=-INF, beta=INF, minmax=1, depth=2, timeout=None, start_time=None, print_space=" "):
+    def AlphaBeta(self, game_stack, player, alpha=-INF, beta=INF, minmax=1, depth=2, timeout=None, start_time=None, print_space=" "):
         """Alpha-Beta Pruning implementation (on NegaMax)
         
         Note: only for 2-player
         """
-        gs = game_state_copy
+        game_state = game_stack.current
         if not start_time:
             start_time = time()
         if depth == 0:
             self.PLY_COUNT += 1
-            return minmax * self.score_func(gs, player), []
-        #all_plies = gs.legal_moves + gs.legal_walls
-        all_plies = TreeAI.get_relevant_plies(gs, True)
+            return minmax * self.score_func(game_state, player), []
+        #all_plies = game_state.legal_moves + game_state.legal_walls
+        all_plies = TreeAI.get_relevant_plies(game_state, True)
         all_scores = [-TreeAI.INF] * len(all_plies)
         for i in range(len(all_plies)):
             if self.kill or (timeout and time()-start_time > timeout):
                 return -TreeAI.INF, []
             ply = all_plies[i]
-            gs.execute_turn(ply)
+            game_stack.execute_turn(ply)
+            if depth==3:
+                print "\n"
             print "(%-3d of %-3d)%s%s" % (i+1, len(all_plies), print_space, ply)
-            ply_score, _ = self.AlphaBeta(gs, player, -beta, -alpha, -minmax, depth-1, timeout, start_time, print_space+"   ")
+            ply_score, _ = self.AlphaBeta(game_stack, player, -beta, -alpha, -minmax, depth-1, timeout, start_time, print_space+"   ")
             ply_score = -ply_score
-            gs.undo()
+            game_stack.undo()
             all_scores[i] = ply_score
             if ply_score > alpha:
                 alpha = ply_score
@@ -163,6 +169,8 @@ class TreeAI():
         
         # all in list with max first
         score_ply = sorted(zip(all_scores, all_plies), reverse=True)
+        if depth==3:
+            print score_ply
         (best_score, _) = score_ply[0]
         best_plies = [p for s, p in score_ply if s == best_score]
         
@@ -170,14 +178,13 @@ class TreeAI():
         return (best_score, best_plies)
     
     @staticmethod
-    def get_relevant_plies(game_state_copy, verbose=False):
-        gs = game_state_copy
+    def get_relevant_plies(game_state, verbose=False):
         relevant_walls = []
         # timing/stats
         tstart = time()
-        num_plies = len(gs.legal_walls) + len(gs.legal_moves)
+        num_plies = len(game_state.legal_walls) + len(game_state.legal_moves)
         # consider walls around the 2 players, plus or minus a row and column
-        for p in gs.players:
+        for p in game_state.players:
             pr, pc = p.position
             for r in range(pr-2, pr+2):
                 for c in range(pc-2, pc+2):
@@ -185,8 +192,8 @@ class TreeAI():
                     relevant_walls.extend(['H'+upleft, 'V'+upleft])
 
         """ OLD VERSION: all walls in bounding box of players, + 1 border
-        cp = gs.current_player
-        ops = gs.other_players
+        cp = game_state.current_player
+        ops = game_state.other_players
         cpr, cpc = cp.position
         for op in ops:
             opr, opc = op.position
@@ -196,11 +203,12 @@ class TreeAI():
                     relevant_walls.extend(['H'+upleft, 'V'+upleft])
         """
         # consider 'choke points' (i.e. narrow passages on the board)
-        h_choke_points = TreeAI.get_h_chokepoints(gs, 4)
-        v_choke_points = TreeAI.get_v_chokepoints(gs, 4)
+        h_choke_points = TreeAI.get_h_chokepoints(game_state, 4)
+        v_choke_points = TreeAI.get_v_chokepoints(game_state, 4)
         
         # now we have choke-points. consider walls in their range
         # TODO - if multiple similar in a row, use even # one
+        #           - ok maybe not. this would avoid strategy of S-turns in 3-wide space
         #      - include walls with upleft 1 space further from border than start
         #   horizontal chokes
         for ((sr, sc), length) in h_choke_points:
@@ -214,7 +222,7 @@ class TreeAI():
                 relevant_walls.extend(['H'+upleft, 'V'+upleft])
         
         # filter so only legal walls
-        relevant_walls = [wall for wall in relevant_walls if wall in gs.legal_walls]
+        relevant_walls = [wall for wall in relevant_walls if wall in game_state.legal_walls]
         
         # unique-ify them
         rw_dict = {}
@@ -222,7 +230,7 @@ class TreeAI():
             rw_dict[w] = 1
         relevant_walls = rw_dict.keys()
         
-        relevant_plies = gs.legal_moves + relevant_walls
+        relevant_plies = game_state.legal_moves + relevant_walls
         
         # print stats
         new_num_plies = len(relevant_plies)

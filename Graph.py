@@ -1,5 +1,6 @@
 from collections import deque
 from pprint import pprint
+import Helpers as h
 
 # graph error classes
 class GraphError(Exception):
@@ -37,7 +38,7 @@ class Graph:
         self.graph_dict = {}
         if graph_in:
             for k, v in graph_in.graph_dict.iteritems():
-                self.graph_dict[k] = v
+                self.graph_dict[k] = h.list_copy(v)
         
         # loop through all edges. add both nodes and weight.
         for e in edges:
@@ -48,8 +49,8 @@ class Graph:
             if not self.graph_dict.has_key(n):
                 self.graph_dict[n] = []
         
-    def __str__(self):
-        return str(self.graph_dict)
+    def __repr__(self):
+        return repr(self.graph_dict)
                 
     def addEdge(self, e, directed=True):
         """Add edge to graph.
@@ -189,6 +190,8 @@ class Graph:
     
     # get path from BFS tree
     def pathFromBFSTree(self, bfs_tree, root, goal):
+        if not bfs_tree.hasNode(goal):
+            return None
         path = [goal]
         while path[0] is not root:
             adj = bfs_tree.get_adj_nodes(path[0])
@@ -206,12 +209,13 @@ class Graph:
     
     # build breadth-first-search tree as a graph.
     # edge weights ignored.
-    def build_BFS_tree(self, root_node):
+    # if goal_nodes provided, stops when it gets to one of them
+    def build_BFS_tree(self, root_node, goal_nodes=None):
         if not self.hasNode(root_node):
             raise NodeNotExistError(root_node)
         
         # initialize tree to graph with single node: the root
-        bfs_tree = Graph(graph_in={})
+        bfs_tree = Graph(nodes=[root_node])
         # list of nodes already encountered_nodes along search
         encountered_nodes = [root_node]
         # queue of next edges to look at
@@ -221,13 +225,19 @@ class Graph:
         
         while len(next_edges) > 0:
             (parent, this_node) = next_edges.popleft()
+            #print "\nbfs: (parent, this):", (parent, this_node)
+            #print "bfs: encountered:", encountered_nodes
             # add this node to bfs tree by putting edge pointing from here back to root
             if parent is not None:
                 bfs_tree.addEdge((this_node, parent, 1), directed=True)
+            if goal_nodes and (this_node in goal_nodes):
+                return bfs_tree
             # get all adjacent nodes
             adj_nodes = self.get_adj_nodes(this_node)
+            #print "bfs: adj:", adj_nodes
             # filter only ones not encountered
             adj_nodes = filter(lambda n: n not in encountered_nodes, adj_nodes)
+            #print "bfs: adj-post-filter:", adj_nodes
             # update which nodes have been encountered
             encountered_nodes.extend(adj_nodes)
             # add new adjacent nodes to queue

@@ -1,6 +1,6 @@
 from Tkinter import *
 from math import floor
-import Game as QG
+from GameStack import GameStack
 import Helpers as h
 from sys import argv
 from time import sleep
@@ -89,7 +89,10 @@ class TkBoard():
         self.tk_root.bind("u",          lambda e: self.undo())
         self.tk_root.bind("r",          lambda e: self.redo())
         self.tk_root.bind("<Enter>",    lambda e: self.refresh())
+        self.tk_root.bind("t",    lambda e: self.disp_time_stats())
         self.thread_kill = False
+        
+        self.time_stats = []
     
         # margin - space/2 - square - space - square - ... - square - space/2 - margin - panel
         total_height = 9*self.SQUARE_SIZE + 9*self.SQUARE_SPACING + 2*self.MARGIN
@@ -102,17 +105,20 @@ class TkBoard():
         self.draw_squares()
         self.generate_walls()
         
-        game_state = QG.Game(np, nai)
-        self.gs = game_state
-        self.players = [(None, None)]*len(game_state.players)
+        self.game_stack = GameStack(np, nai)
+        self.update_gs()
+        self.players = [(None, None)]*len(self.gs.players)
         self.max_walls = self.gs.current_player.num_walls
-        self.wall_labels = [None]*len(game_state.players)
+        self.wall_labels = [None]*len(self.gs.players)
         self.draw_panel()
         self.refresh(False)
         th = Thread(target = lambda : self.background_loop())
         th.start()
 
         self.tk_root.mainloop()
+    
+    def update_gs(self):
+        self.gs = self.game_stack.current
     
     def background_loop(self):
         while True:
@@ -130,14 +136,15 @@ class TkBoard():
         self.tk_root.destroy()
     
     def refresh(self, check_ai=True):
+        self.update_gs()
         self.clear_ghost()
-        self.draw_current_player_icon()
-        self.draw_wall_counts()
+        self.handle_mouse_motion(self.recent_x, self.recent_y)
         self.active_wall = ""
         self.active_move = ""
-        self.handle_mouse_motion(self.recent_x, self.recent_y)
         self.draw_players()
         self.redraw_walls(False)
+        self.draw_current_player_icon()
+        self.draw_wall_counts()
         if check_ai:
             self.get_ai_move()
        
@@ -149,11 +156,12 @@ class TkBoard():
             if ai.thread_started:
                 if verbose:
                     print "and thread",
-                t = ai.get_threaded_move()
-                if t:
+                turn, time = ai.get_threaded_move()
+                if turn:
+                    self.time_stats.append(time)
                     if verbose:
                         print "is done!"
-                    if not self.exec_wrapper(t, True):
+                    if not self.exec_wrapper(turn, True):
                         print "\n################"
                         print   "### AI ERROR ###"
                         print   "################\n"
@@ -165,7 +173,7 @@ class TkBoard():
             else:
                 if verbose:
                     print "but thread hasn't started. starting now."
-                ai.get_move_thread_start(self.gs.duplicate())
+                ai.get_move_thread_start(self.game_stack.duplicate())
     
     def draw_current_player_icon(self):
         width, height = self.canvas_dims
@@ -231,11 +239,11 @@ class TkBoard():
         self.draw_wall_counts()
     
     def undo(self):
-        self.gs.undo()
+        self.game_stack.undo()
         self.refresh(False)
         self.game_over = False
     def redo(self):
-        self.gs.redo()
+        self.game_stack.redo()
         self.refresh()
     
     def draw_wall_counts(self):
@@ -280,8 +288,6 @@ class TkBoard():
                 self.redraw_walls(active_error)
     
     def handle_click(self, e):
-        if self.game_over or self.gs.current_player.ai:
-            return
         x = e.x
         y = e.y
         # check for button press
@@ -290,6 +296,10 @@ class TkBoard():
             if (x0 <= x <= x1) and (y0 <= y <= y1):
                 callback()
                 return
+                
+        if self.game_over or self.gs.current_player.ai:
+            return
+            
         # check for turn execution
         grid = self.point_to_grid((x,y))
         success = False
@@ -350,7 +360,8 @@ class TkBoard():
         if from_ai != is_ai:
             return False
         print "EXECUTING %s TURN" % ("AI" if is_ai else "HUMAN")
-        success = self.gs.execute_turn(turn_str)
+        success = self.game_stack.execute_turn(turn_str)
+        self.update_gs()
         if success == 1:
             print "\tSUCCESS"
             self.moveType = "move"
@@ -514,6 +525,9 @@ class TkBoard():
         hex_b = hex(new_b)[2:].rjust(2,"0")
         
         return "#"+hex_r+hex_g+hex_b
+    
+    def disp_time_stats(self):
+        print self.time_stats
 
     def __init__(self, n, ai):
         self.new_game(n, ai)
