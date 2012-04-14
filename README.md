@@ -36,6 +36,14 @@ The board itself and what I call the "panel" on the right should both be pretty 
 
 ## AI
 
-Nothing yet (currently does 2-player)
+So there's an AI. It is broken and very stupid. working on it.
 
-Hopefully soon I'll add a basic AI, and finish the API so other people can submit AIs to battle each other
+    python TkBoard.py p a
+
+where `p` is the total number of players (2 or 4) and `a` is the number of ai players. For example, 1-on-1 human vs ai is
+
+    python TkBoard.py 2 1
+    
+Or, to watch 4 AIs play each other
+
+    python TkBoard.py 4 4
