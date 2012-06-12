@@ -25,7 +25,7 @@ def append_stat(name, val):
 ## Notation functions ##
 ########################
 
-def point_to_notation(pt):
+def grid_to_notation(pt):
     # both row and column are in [1,9]. rows denoted by this number,
     #   but columns denoted by letters 'a' through 'i'
     row, column = pt
@@ -105,7 +105,7 @@ def get_all_legal_moves(game_state):
         game_state.update_available_points()
     player = game_state.get_player_by_num(player_num)
 
-    return [point_to_notation(pt) for pt in player.available_points]
+    return [grid_to_notation(pt) for pt in player.available_points]
 
 def get_all_legal_walls(game_state):
     return filter_legal_turns(game_state, all_walls());

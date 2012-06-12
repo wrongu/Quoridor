@@ -188,7 +188,7 @@ class TreeAI():
             pr, pc = p.position
             for r in range(pr-2, pr+2):
                 for c in range(pc-2, pc+2):
-                    upleft = h.point_to_notation((r,c))
+                    upleft = h.grid_to_notation((r,c))
                     relevant_walls.extend(['H'+upleft, 'V'+upleft])
 
         """ OLD VERSION: all walls in bounding box of players, + 1 border
@@ -199,7 +199,7 @@ class TreeAI():
             opr, opc = op.position
             for r in range(min(cpr-2, opr-2), max(cpr+2, opr+2)):
                 for c in range(min(cpc-2, opc-2), max(cpc+2, opc+2)):
-                    upleft = h.point_to_notation((r,c))
+                    upleft = h.grid_to_notation((r,c))
                     relevant_walls.extend(['H'+upleft, 'V'+upleft])
         """
         # consider 'choke points' (i.e. narrow passages on the board)
@@ -213,12 +213,12 @@ class TreeAI():
         #   horizontal chokes
         for ((sr, sc), length) in h_choke_points:
             for c in range(sc, sc+length):
-                upleft = h.point_to_notation((sr, c))
+                upleft = h.grid_to_notation((sr, c))
                 relevant_walls.extend(['H'+upleft, 'V'+upleft])
         #   vertical chokes
         for ((sr, sc), length) in v_choke_points:
             for r in range(sr, sr+length):
-                upleft = h.point_to_notation((r, sc))
+                upleft = h.grid_to_notation((r, sc))
                 relevant_walls.extend(['H'+upleft, 'V'+upleft])
         
         # filter so only legal walls

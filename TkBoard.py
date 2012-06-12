@@ -5,6 +5,7 @@ import Helpers as h
 from sys import argv
 from time import sleep
 from threading import Thread
+from pprint import pprint
 
 # TODO - print graph
 
@@ -52,6 +53,7 @@ class TkBoard():
     active_move = ""
     recent_x = 0
     recent_y = 0
+    path_ids = []
     
     # GAME-INTERACTION VARIABLES
     gs = None
@@ -145,6 +147,10 @@ class TkBoard():
         self.redraw_walls(False)
         self.draw_current_player_icon()
         self.draw_wall_counts()
+        self.clear_paths()
+        for i in range(len(self.game_stack.current.players)):
+            p = self.game_stack.current.players[i]
+            self.draw_path(p.shortest_path, 2*i, self.DEFAULT_COLORS['players'][i])
         if check_ai:
             self.get_ai_move()
        
@@ -269,7 +275,7 @@ class TkBoard():
         self.recent_y = y
         grid = self.point_to_grid((x,y))
         if grid and self.moveType == "move":
-            move_str = h.point_to_notation(grid)
+            move_str = h.grid_to_notation(grid)
             if move_str != self.active_move:
                 self.active_move = move_str
                 if self.gs.turn_is_valid(move_str, "move"):
@@ -280,7 +286,7 @@ class TkBoard():
             
         elif grid and self.moveType == "wall":
             orient, topleft = self.xy_to_wall_spec(grid, x, y)
-            pos = h.point_to_notation(topleft)
+            pos = h.grid_to_notation(topleft)
             wall_str = orient+pos
             if wall_str != self.active_wall:
                 self.active_wall = wall_str
@@ -304,11 +310,11 @@ class TkBoard():
         grid = self.point_to_grid((x,y))
         success = False
         if grid and self.moveType == "move":
-            move_str = h.point_to_notation(grid)
+            move_str = h.grid_to_notation(grid)
             success = self.exec_wrapper(move_str)
         elif grid and self.moveType == "wall":
             orient, topleft = self.xy_to_wall_spec(grid, x, y)
-            pos = h.point_to_notation(topleft)
+            pos = h.grid_to_notation(topleft)
             wall_str = orient+pos
             success = self.exec_wrapper(wall_str)
         if success:
@@ -324,7 +330,7 @@ class TkBoard():
             cr -= 1
         elif key == "D":
             cr += 1
-        move_str = h.point_to_notation((cr, cc))
+        move_str = h.grid_to_notation((cr, cc))
         success = self.exec_wrapper(move_str)
         if success:
             self.refresh()
@@ -362,6 +368,10 @@ class TkBoard():
         print "EXECUTING %s TURN" % ("AI" if is_ai else "HUMAN")
         success = self.game_stack.execute_turn(turn_str)
         self.update_gs()
+        # print paths
+        for p in self.game_stack.current.players:
+            print "%s's PATH"
+            pprint(p.shortest_path)
         if success == 1:
             print "\tSUCCESS"
             self.moveType = "move"
@@ -372,6 +382,7 @@ class TkBoard():
             print "Winner!!"
             print "Player", self.gs.current_player_num
             self.game_over = True
+            self.clear_paths()
             return True
         print "\tFAILED"
         return False
@@ -471,6 +482,22 @@ class TkBoard():
         if self.player_ghost:
             self.tk_canv.delete(self.player_ghost)
             self.player_ghost = None
+
+    def clear_paths(self):
+        for p in self.path_ids:
+            self.tk_canv.delete(p)
+        self.path_ids = []
+
+    def draw_path(self, path, xoff, color="#0000DD"):
+        """draw a path (array of tuples: [(row,col)])
+        """
+        st_x, st_y = self.grid_to_point(path[0]);
+        for p in path[1:]:
+            x,y = self.grid_to_point(p)
+            l = self.tk_canv.create_line(st_x+xoff, st_y, x+xoff, y, fill=color, width=2)
+            self.path_ids.append(l)
+            st_x = x
+            st_y = y
 
     def grid_to_point(self, grid_pt):
         """given (row, col), return centerpoint of that square on the canvas

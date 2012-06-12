@@ -191,13 +191,11 @@ class Game:
         else:
             if not is_redo:
                 self.redo_history = []
-            # time consuming to do all this updating and checking
-            #   if not verify, don't update.
             player_just_moved = self.current_player
             self.history.append(turn_string)
             self.next_player()
-            if verify_legal:
-                self.update_all([player_just_moved])
+#            if verify_legal:
+            self.update_all(self.players)
             return 1
     
     def undo(self):
@@ -207,12 +205,10 @@ class Game:
             self.redo_history.append(turn)
             if len(turn) == 2:
                 self.current_player.pop_location()
-                self.update_shortest_path(self.current_player)
             elif len(turn) == 3:
                 self.remove_wall(turn)
                 self.current_player.num_walls += 1
-            self.update_legal_moves()
-            self.update_legal_walls()
+            self.update_all(self.players)
     
     def redo(self):
         if len(self.redo_history) > 0:
@@ -247,6 +243,7 @@ class Game:
     def get_shortest_path_player(self, player, force_recalc=False):
         p = player
         if force_recalc or not p.shortest_path:
+            # if no walls have been played, get paths the quick way
             if len(self.walls) == 0:
                 return self.graph.findPathDepthFirst(p.position, p.goal_positions, p.sortfunc)
             else:
@@ -270,16 +267,16 @@ class Game:
         player = self.get_player_by_num(player_num)
         return self.graph.findPathDepthFirst(player.position, player.goal_positions, player.sortfunc) is not None
 
-    def update_all(self, player_list=None):
+    def update_all(self, player_list):
         for p in player_list:
             self.update_shortest_path(p)
         self.update_legal_moves()
         self.update_legal_walls()
-    
+        
     def update_legal_moves(self):
         self.update_available_points()
         legal_pts = self.current_player.available_points
-        self.legal_moves = [h.point_to_notation(p) for p in legal_pts]
+        self.legal_moves = [h.grid_to_notation(p) for p in legal_pts]
         #print "legal moves updated to:", self.legal_moves
 
     def update_legal_walls(self):
@@ -307,9 +304,9 @@ class Game:
                         # path interrupted by new wall
                         broken = True
                         break
-                # path still clear, therefore still shortest. no change!
-                if not broken:
-                    recalc_path = False
+                
+                # if broken, recalc. if unbroken, don't recalc
+                recalc_path = broken
         
         if recalc_path:
             player.shortest_path = self.get_shortest_path_player(player, True)
@@ -351,6 +348,8 @@ class Game:
                         avail_pts_temp.append(T_point_2)
         player.available_points = avail_pts_temp
 
+    # TODO - only check paths if it cuts off a current shortest path
+    #   (separate function to check cut given path and wall; write in helpers; use here and in updating shortest path)
     def wall_is_valid(self, wall_string):
         try:
             if len(wall_string) != 3:
