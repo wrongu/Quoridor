@@ -54,6 +54,7 @@ class TkBoard():
     recent_x = 0
     recent_y = 0
     path_ids = []
+    paths = False
     
     # GAME-INTERACTION VARIABLES
     gs = None
@@ -87,6 +88,7 @@ class TkBoard():
         self.tk_root.bind("<Down>",     lambda e: self.handle_keypress("D"))
         self.tk_root.bind("w",          lambda e: self.set_movetype("wall"))
         self.tk_root.bind("m",          lambda e: self.set_movetype("move"))
+        self.tk_root.bind("p",          lambda e: self.toggle_paths())
         self.tk_root.bind("<space>",    lambda e: self.toggle_movetype())
         self.tk_root.bind("u",          lambda e: self.undo())
         self.tk_root.bind("r",          lambda e: self.redo())
@@ -147,10 +149,7 @@ class TkBoard():
         self.redraw_walls(False)
         self.draw_current_player_icon()
         self.draw_wall_counts()
-        self.clear_paths()
-        for i in range(len(self.game_stack.current.players)):
-            p = self.game_stack.current.players[i]
-            self.draw_path(p.shortest_path, 2*i, self.DEFAULT_COLORS['players'][i])
+        self.draw_paths()
         if check_ai:
             self.get_ai_move()
        
@@ -369,7 +368,7 @@ class TkBoard():
         success = self.game_stack.execute_turn(turn_str)
         self.update_gs()
         # print paths
-        for p in self.game_stack.current.players:
+        for p in self.gs.players:
             print "%s's PATH"
             pprint(p.shortest_path)
         if success == 1:
@@ -487,6 +486,16 @@ class TkBoard():
         for p in self.path_ids:
             self.tk_canv.delete(p)
         self.path_ids = []
+
+    def toggle_paths(self):
+        self.paths = not self.paths
+
+    def draw_paths(self):
+        self.clear_paths()
+        if self.paths:
+            for i in range(len(self.gs.players)):
+                p = self.gs.players[i]
+                self.draw_path(p.shortest_path, 2*i, self.DEFAULT_COLORS['players'][i])        
 
     def draw_path(self, path, xoff, color="#0000DD"):
         """draw a path (array of tuples: [(row,col)])
