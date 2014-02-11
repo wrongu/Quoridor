@@ -11,6 +11,7 @@ from threading import Thread
 class TkBoard():
     # CONSTANTS
     SQUARE_SIZE = 50
+    GOAL_SQUARE_SIZE = 8
     PLAYER_SIZE = SQUARE_SIZE * 0.8
     SQUARE_SPACING = 10
     MARGIN = 20
@@ -43,6 +44,7 @@ class TkBoard():
     icon = None
     ai_label = None
     squares = [[0]*9]*9
+    goal_squares = []
     wall_labels = []
     grid = None
     canvas_dims = (0,0)
@@ -114,6 +116,10 @@ class TkBoard():
         self.refresh(False)
         th = Thread(target = lambda : self.background_loop())
         th.start()
+        
+        self.draw_squares()
+        self.draw_goals()
+        self.generate_walls()
 
         self.tk_root.mainloop()
     
@@ -385,6 +391,17 @@ class TkBoard():
                 color = self.DEFAULT_COLORS['square']
                 sq = self.tk_canv.create_rectangle(x, y, x+self.SQUARE_SIZE, y+self.SQUARE_SIZE, fill=color, outline="")
                 self.squares[r][c] = sq
+    
+    def draw_goals(self):
+        for i in range(len(self.gs.players)):
+            p = self.gs.players[i]
+            color = self.DEFAULT_COLORS['players'][i]
+            for g in p.goal_positions:
+                (cx, cy) = self.grid_to_point(g)
+                top =  cy-self.GOAL_SQUARE_SIZE/2
+                left = cx-self.GOAL_SQUARE_SIZE/2
+                new_square = self.tk_canv.create_rectangle(left, top, left+self.GOAL_SQUARE_SIZE, top+self.GOAL_SQUARE_SIZE, fill=color, outline="")
+                self.goal_squares.append(new_square)
     
     def generate_walls(self):
         for w in h.all_walls():
