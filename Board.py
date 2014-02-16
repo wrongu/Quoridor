@@ -39,7 +39,8 @@ class Board(object):
 	def __init__(self):
 		self.grid = Board.__create_grid()
 
-	def __create_grid():
+	@classmethod
+	def __create_grid(cls):
 		"""
 		The grid consists of a SIZE x SIZE array of nodes indexed by [row][column]. 
 		Each node is connected to its immediate neighbors.
