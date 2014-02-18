@@ -8,8 +8,14 @@ class Player(object):
 
 	def __init__(self, name):
 		self.name = name
+		self.walls = 0
 
 	def __str__(self):
 		return str(name)
 
+	def set_walls(self, w):
+		self.walls = w
+
+	def use_wall(self):
+		self.walls -= 1
 	
