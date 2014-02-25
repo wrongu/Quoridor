@@ -64,6 +64,14 @@ class Wall(object):
 		pos = Node.parse(notate[1:])
 		return Wall(pos, orient)
 
+	@classmethod
+	def cross(cls, notate):
+		"""return the wall that crosses the given wall"""
+		if notate[0] == Wall.HORIZONTAL:
+			return Wall.VERTICAL + notate[1:]
+		elif notate[0] == Wall.VERTICAL:
+			return Wall.HORIZONTAL + notate[1:]
+
 	def __str__(self):
 		return Wall.notate(self.position, self.orientation)
 

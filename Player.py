@@ -4,18 +4,20 @@
 
 class Player(object):
 
-	name = ''
-
-	def __init__(self, name):
+	def __init__(self, name, start_position, goals):
 		self.name = name
-		self.walls = 0
+		self.position = start_position
+		self.goals = goals
 
 	def __str__(self):
 		return str(name)
 
-	def set_walls(self, w):
-		self.walls = w
+	def get_position(self):
+		return self.position
 
-	def use_wall(self):
-		self.walls -= 1
+	def update_position(self, newpos):
+		self.position = newpos
+
+	def reached_goal():
+		return self.position in self.goals
 	
