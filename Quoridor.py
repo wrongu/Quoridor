@@ -85,11 +85,11 @@ class Quoridor(object):
 				'V8a', 'V8b', 'V8c', 'V8d', 'V8e', 'V8f', 'V8g', 'V8h']
 
 	def __init__(self, n_players=2):
+		if n_players != 2 and n_players != 4:
+			raise StateError("Number of players must be either 2 or 4")
 		self.board = Board()
 		self.current_player = -1
 		self.n_players = n_players
-		if self.n_players != 2 and self.n_players != 4:
-			raise StateError("Number of players must be either 2 or 4")
 
 	@require_state(State.INIT)
 	def create_player(self, pname):
@@ -129,36 +129,6 @@ class Quoridor(object):
 			raise StateError("Cannot start a game with %d players" % len(self.players))
 
 	@require_state(State.PLAYING)
-	def __current_player(self):
-		return self.players[self.current_player]
-
-	@require_state(State.PLAYING)
-	def __try_turn(self, turn):
-		"""Execute the given turn for the current player, or raise an IllegalMove exception"""
-		# TODO ? check format
-		if len(turn) == 2:
-			# MOVE
-			newpos = Node.parse(turn)
-			playerpos = self.__current_player().get_position()
-			if self.board.can_step(playerpos, newpos):
-				self.__current_player().update_position(newpos)
-		elif len(turn) == 3:
-			# check if it has already been played
-			if turn in self.played_walls:
-				raise IllegalMove("%s has already been played" % turn)
-			# check if the crossing wall (+ shape) has been played (can't overlap)
-			if Wall.cross(turn) in self.played_walls:
-				raise IllegalMove("Walls may not cross")
-			# check players' paths to goals
-		else:
-			raise IllegalMove("%s is not a turn string" % turn)
-
-	def __game_is_over(self):
-		for p in self.players:
-			if p.reached_goal():
-				return True
-
-	@require_state(State.PLAYING)
 	def do_turn(self, pid, turn):
 		'''Attempt the given turn for the given player. If it is not that player's turn, a StateError is raised.
 
@@ -181,6 +151,60 @@ class Quoridor(object):
 				print "Illegal Move by %d: %s" % (pid, str(turn))
 		else:
 			raise StateError("Bad request for a turn by player %d. It's %d's turn." % (pid, self.current_player))
+
+	@require_state(State.PLAYING)
+	def turn_is_legal(self, turnstring):
+		if len(turnstring) == 2:
+			# MOVE
+			newpos = Node.parse(turnstring)
+			playerpos = self.__current_player().get_position()
+			if self.board.can_step(playerpos, newpos):
+				return (True, "") # player may move to the given position
+			else:
+				return (False, "%s cannot move to %s" % (str(self.__current_player()), turnstring))
+		elif len(turnstring) == 3:
+			# check if it has already been played
+			if turnstring in self.played_walls:
+				return (False, "Wall %s has already been played" % turnstring)
+			
+			# check if the crossing wall (+ shape) has been played (can't overlap)
+			if Wall.cross(turnstring) in self.played_walls:
+				return (False, "Walls may not cross")
+			
+			# check players' paths to goals
+			w = Wall.parse(turnstring)
+			## ADD WALL ##
+			self.board.add_wall(w)
+			# check player paths
+			for p in self.players:
+				if not self.board.path(p.position, p.goals):
+					self.board.remove_wall(w)
+					return (False, "Wall cuts off the path for %s" % str(p))
+			
+			## REMOVE WALL ## (check complete)
+			self.board.remove_wall(w)
+
+			# all checks passed!
+			return (True, "")
+		else:
+			return (False, "%s is not a valid turn string" % turnstring)
+
+	@require_state(State.PLAYING)
+	def undo(self):
+		pass # TODO
+
+	@require_state(State.PLAYING)
+	def redo(self):
+		pass # TODO
+
+	@require_state(State.PLAYING)
+	def __current_player(self):
+		return self.players[self.current_player]
+
+	def __game_is_over(self):
+		for p in self.players:
+			if p.reached_goal():
+				return True
 
 if __name__ == '__main__':
 	# Testing...
