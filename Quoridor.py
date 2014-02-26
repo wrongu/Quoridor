@@ -25,7 +25,7 @@ def require_state(st):
 		st = [st]
 	def decorator(fn):
 		def wrapper(inst, *args):
-			if inst.state in st:
+			if inst.state() in st:
 				return fn(inst, *args)
 			else:
 				raise StateError("Bad method call %s() while in state %d" % (fn.__name__, inst.state))
@@ -60,12 +60,6 @@ class Quoridor(object):
 		might be 'd4h' for a horizontal wall that touches d4, d5, e4, and e5
 
 	'''
-	state = State.INIT
-	board = None
-	players = []
-	history = [] # stack of moves, history[0] is first, history[-1] is last
-	future = []  # stack of 'future moves' (i.e. the redo stack). future[-1] is the next move, future[0] is farthest in the future
-	played_walls = []
 
 	ALL_WALLS = ['a1h', 'b1h', 'c1h', 'd1h', 'e1h', 'f1h', 'g1h', 'h1h',
 				'a2h', 'b2h', 'c2h', 'd2h', 'e2h', 'f2h', 'g2h', 'h2h',
@@ -87,11 +81,22 @@ class Quoridor(object):
 	def __init__(self, n_players=2):
 		if n_players != 2 and n_players != 4:
 			raise StateError("Number of players must be either 2 or 4")
-		self.board = Board()
-		self.current_player = -1
-		self.n_players = n_players
-		self.players = []
-		self.player_moves = [] # player_moves is an array of tuples where the current player may move to, updated at the start of their turn
+		self.__state = State.INIT
+		self.__played_walls = []
+		self.__board = Board()
+		self.__current_player = -1
+		self.__n_players = n_players
+		self.__players = []
+		self.__player_moves = [] # player_moves is an array of tuples where the current player may move to, updated at the start of their turn
+
+	def state(self):
+		return self.__state
+
+	def moveables(self):
+		return self.__player_moves
+
+	def copy(self):
+		pass
 
 	@require_state([State.PLAYING, State.OVER])
 	def summary(self):
@@ -104,8 +109,8 @@ class Quoridor(object):
 			}"""
 		grid = Grid2D(Board.SIZE, Board.SIZE)
 		return {
-			'players' : dict(zip([p.position() for p in self.players], [(str(p), p.num_walls()) for p in self.players])),
-			'board' : self.board.summary()
+			'players' : dict(zip([p.position() for p in self.__players], [(str(p), p.num_walls()) for p in self.__players])),
+			'board' : self.__board.summary()
 		}
 
 	@require_state(State.INIT)
@@ -124,12 +129,12 @@ class Quoridor(object):
 				 [(0,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),(0,8)],
 				 [(0,8),(1,8),(2,8),(3,8),(4,8),(5,8),(6,8),(7,8),(8,8)]]
 		}
-		if len(self.players) < self.n_players:
-			next_id = len(self.players)
-			self.players.append(Player(pname,
-				starts[self.n_players][next_id],
-				goals [self.n_players][next_id],
-				5 if self.n_players == 4 else 10))
+		if len(self.__players) < self.__n_players:
+			next_id = len(self.__players)
+			self.__players.append(Player(pname,
+				starts[self.__n_players][next_id],
+				goals [self.__n_players][next_id],
+				5 if self.__n_players == 4 else 10))
 			return next_id
 		else:
 			raise StateError("The game is already full!")
@@ -140,12 +145,12 @@ class Quoridor(object):
 
 		An exception is raised if there are not the correct number of players
 		'''
-		if len(self.players) == self.n_players:
-			self.current_player = 0
-			self.state = State.PLAYING
-			self.player_moves = self.__prep_moves(self.current_player)
+		if len(self.__players) == self.__n_players:
+			self.__current_player = 0
+			self.__state = State.PLAYING
+			self.__player_moves = self.__prep_moves(self.__current_player)
 		else:
-			raise StateError("Cannot start a game with %d players" % len(self.players))
+			raise StateError("Cannot start a game with %d players" % len(self.__players))
 
 	@require_state(State.PLAYING)
 	def do_turn(self, pid, turnstring):
@@ -153,77 +158,83 @@ class Quoridor(object):
 
 		A turn is either Moving or placing a Wall. The notation is as follows:
 		'''
-		if pid == self.current_player:
+		if pid == self.__current_player:
 			legal, info = self.turn_is_legal(turnstring)
 			if legal:
 				if isinstance(info, Node):
-					self.__current_player().update_position(info.position)
+					self.__player().update_position(info.position)
 				elif isinstance(info, Wall):
-					self.board.add_wall(info)
-					self.played_walls.append(turnstring)
-					self.__current_player().use_wall()
+					self.__board.add_wall(info)
+					self.__played_walls.append(turnstring)
+					self.__player().use_wall()
 				else:
 					raise StateError("broken internal function turn_is_legal")
 				# game could be over
 				if self.__game_is_over():
-					self.state = State.OVER
+					self.__state = State.OVER
 					# note that by changing the state, no futher moves may be made, and "current_player"
 					# is now the winning player
 				else:
 					# advance to next player
-					self.current_player = (self.current_player + 1) % len(self.players)
+					self.__current_player = (self.__current_player + 1) % len(self.__players)
 					# update moves now that it's a new player's turn
-					self.player_moves = self.__prep_moves(self.current_player)
+					self.__player_moves = self.__prep_moves(self.__current_player)
 			else:
 				raise IllegalMove(info)
 		else:
-			raise StateError("Bad request for a turn by player %d. It's %d's turn." % (pid, self.current_player))
+			raise StateError("Bad request for a turn by player %d. It's %d's turn." % (pid, self.__current_player))
 
 	@require_state(State.PLAYING)
 	def turn_is_legal(self, turnstring):
 		if len(turnstring) == 2:
 			# MOVE
-			# self.player_moves is updated at the start of this turn with all locations where the current
+			# self.__player_moves is updated at the start of this turn with all locations where the current
 			# player may move.. so this is a simple lookup
 			try:
 				n = Node.parse(turnstring)
 			except:
 				return (False, "Cannot parse %s as a Node" % turnstring)
-			if n in self.player_moves:
+			if n in self.__player_moves:
 				return (True, Node(n))
 			else:
-				return (False, "%s cannot move to %s" % (str(self.__current_player()), turnstring))
+				return (False, "%s cannot move to %s" % (str(self.__player()), turnstring))
 		elif len(turnstring) == 3:
 			try:
 				w = Wall.parse(turnstring)
 			except:
 				return (False, "Cannot parse %s as a Wall" % turnstring)
 			# check if current player has any walls remaining
-			if self.__current_player().num_walls() <= 0:
-				return (False, "Player %s has no remaining walls" % str(self.__current_player()))
+			if self.__player().num_walls() <= 0:
+				return (False, "Player %s has no remaining walls" % str(self.__player()))
 			# check if it has already been played
-			if turnstring in self.played_walls:
+			if turnstring in self.__played_walls:
 				return (False, "Wall %s has already been played" % turnstring)
 			
 			# check if the crossing wall (+ shape) has been played (can't overlap)
-			if Wall.cross(turnstring) in self.played_walls:
+			if Wall.cross(turnstring) in self.__played_walls:
 				return (False, "Walls may not cross")
 			
 			## ADD WALL ##
-			self.board.add_wall(w)
+			self.__board.add_wall(w)
 			# check player paths
-			for p in self.players:
-				if not self.board.path(p.position(), p.goals()):
-					self.board.remove_wall(w)
+			for p in self.__players:
+				if not self.__board.path(p.position(), p.goals()):
+					self.__board.remove_wall(w)
 					return (False, "Wall cuts off the path for %s" % str(p))
 			
 			## REMOVE WALL ## (check complete)
-			self.board.remove_wall(w)
+			self.__board.remove_wall(w)
 
 			# all checks passed!
 			return (True, w)
 		else:
 			return (False, "%s is not a valid turn string" % turnstring)
+
+	@require_state(State.PLAYING)
+	def all_turns(self):
+		lst = [mv for mv in self.__player_moves]
+		lst.extend(filter(lambda w : self.turn_is_legal(w)[0], Quoridor.ALL_WALLS))
+		return lst
 
 	@require_state(State.PLAYING)
 	def undo(self):
@@ -235,11 +246,11 @@ class Quoridor(object):
 
 	@require_state(State.PLAYING)
 	def __prep_moves(self, pid):
-		pl = self.players[pid]
+		pl = self.__players[pid]
 		(pr, pc) = pl.position()
 		# get all adjacent squares (0 to 4 of them)
-		adjacents = set(self.board.neighbors(pl.position()))
-		players_pos = set([p.position() for p in self.players])
+		adjacents = set(self.__board.neighbors(pl.position()))
+		players_pos = set([p.position() for p in self.__players])
 		# free to step to any adjacent squares that do not have players on them
 		steppable = list(adjacents - players_pos)
 		# further processing required if player is adjacent - pl can jump
@@ -250,21 +261,21 @@ class Quoridor(object):
 			# simple jump: over other player
 			simple_next = (jr + dir_r, jc+dir_c)
 			# test if simple jump is ok (i.e. no wall and no 3rd player there)
-			if self.board.can_step((jr,jc), simple_next) and simple_next not in players_pos:
+			if self.__board.can_step((jr,jc), simple_next) and simple_next not in players_pos:
 					steppable.append(simple_next)
 			else:
 				# jump is blocked either by a wall or by a 3rd player. this is where diagonal moves are allowed
 				two_away = (simple_next[0] + dir_r, simple_next[1] + dir_c)
-				diagonals_set = set(self.board.neighbors((jr,jc))) - set([pl.position(), two_away])
+				diagonals_set = set(self.__board.neighbors((jr,jc))) - set([pl.position(), two_away])
 				steppable.extend(list(diagonals_set))
 		return steppable
  
 	@require_state(State.PLAYING)
-	def __current_player(self):
-		return self.players[self.current_player]
+	def __player(self):
+		return self.__players[self.__current_player]
 
 	def __game_is_over(self):
-		for p in self.players:
+		for p in self.__players:
 			if p.reached_goal():
 				return True
 

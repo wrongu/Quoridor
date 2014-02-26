@@ -75,7 +75,7 @@ if __name__ == '__main__':
 		try:
 			state = QGame.summary()
 			print board_string(state)
-			print "moveable:", [Node.notate(pos) for pos in QGame.player_moves]
+			print "moveable:", [Node.notate(pos) for pos in QGame.moveables()]
 			prompt = "%s> " % (name1 if cur_play == id1 else name2)
 			move = raw_input("\n%s" % prompt)
 			QGame.do_turn(cur_play, move)
@@ -90,6 +90,6 @@ if __name__ == '__main__':
 				if i[0] == 'y' or i[0] == 'Y':
 					break
 	print "-- done --"
-	if QGame.state == State.OVER:
+	if QGame.state() == State.OVER:
 		print board_string(state)
 		print "Winner was", QGame.players[QGame.current_player]
