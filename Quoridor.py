@@ -19,9 +19,13 @@ def require_state(st):
 	'''A decorator method for requiring certain state
 
 	because it takes a parameter, it is really a decorator inside a decorator...'''
+	try:
+		test = None in st
+	except:
+		st = [st]
 	def decorator(fn):
 		def wrapper(inst, *args):
-			if inst.state == st:
+			if inst.state in st:
 				return fn(inst, *args)
 			else:
 				raise StateError("Bad method call %s() while in state %d" % (fn.__name__, inst.state))
@@ -89,6 +93,7 @@ class Quoridor(object):
 		self.players = []
 		self.player_moves = [] # player_moves is an array of tuples where the current player may move to, updated at the start of their turn
 
+	@require_state([State.PLAYING, State.OVER])
 	def summary(self):
 		"""return a dict representation (copy such that writes dont matter) of the current state of the game
 

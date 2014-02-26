@@ -91,4 +91,5 @@ if __name__ == '__main__':
 					break
 	print "-- done --"
 	if QGame.state == State.OVER:
+		print board_string(state)
 		print "Winner was", QGame.players[QGame.current_player]
