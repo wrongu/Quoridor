@@ -213,6 +213,10 @@ class Quoridor(object):
 			# check if the crossing wall (+ shape) has been played (can't overlap)
 			if Wall.cross(turnstring) in self.__played_walls:
 				return (False, "Walls may not cross")
+			# check if offset walls (colinear, one space to the side) have been played
+			for shifted in Wall.shift(turnstring):
+				if shifted in self.__played_walls:
+					return (False, "Walls may not overlap")
 			
 			## ADD WALL ##
 			self.__board.add_wall(w)

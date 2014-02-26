@@ -92,6 +92,24 @@ class Wall(object):
 		"""return the wall that crosses the given wall (just flip h <--> v)"""
 		return "%s%c" % (notate[0:2], Wall.HORIZONTAL if notate[2] is Wall.VERTICAL else Wall.VERTICAL)
 
+	@classmethod
+	def shift(cls, notate):
+		"""return the notation for the walls offset from the given wall colinearly by one space"""
+		w = Wall.parse(notate)
+		(r,c) = w.position
+		lst = []
+		if notate[2] == Wall.HORIZONTAL:
+			if c > 0:
+				lst.append(Wall.notate((r,c-1), Wall.HORIZONTAL))
+			if c+1 < Board.SIZE:
+				lst.append(Wall.notate((r,c+1), Wall.HORIZONTAL))
+		elif notate[2] == Wall.VERTICAL:
+			if r > 0:
+				lst.append(Wall.notate((r-1,c), Wall.VERTICAL))
+			if r+1 < Board.SIZE:
+				lst.append(Wall.notate((r+1,c), Wall.VERTICAL))
+		return lst
+
 	def __str__(self):
 		return Wall.notate(self.position, self.orientation)
 
