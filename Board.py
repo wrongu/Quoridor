@@ -17,6 +17,9 @@ class Node(object):
 		self.walls = [None]*4 # NORTH, EAST, SOUTH, WEST
 		self.position = pos
 
+	def __eq__(self, other):
+		return isinstance(other, Node) and other.position == self.position
+
 	def wall(self, w, direction):
 		"""Add the given wall to this Node's list of adjacent walls"""
 		self.walls[direction] = w
@@ -51,6 +54,9 @@ class Wall(object):
 	def __init__(self, topleft, orient):
 		self.orientation = orient
 		self.position = topleft
+
+	def __eq__(self, other):
+		return isinstance(other, Wall) and other.position == self.position and other.orientation == self.orientation
 
 	def blocks(self, posA, posB):
 		(ra, ca) = posA
@@ -147,10 +153,38 @@ class Board(object):
 				self.grid[r][c] = Node((r,c))
 
 	def add_wall(self, wall):
-		pass
+		"""add the given Wall object to the board, updating affected Nodes
+
+		It is assumed this wall is valid by the rules of the game.. no checks are performed"""
+		(wr, wc) = wall.position # topleft position (min row and min col)
+		if wall.orientation == Wall.VERTICAL:
+			self.grid[ wr ][ wc ].wall(wall, Node.EAST)
+			self.grid[wr+1][ wc ].wall(wall, Node.EAST)
+			self.grid[ wr ][wc+1].wall(wall, Node.WEST)
+			self.grid[wr+1][wc+1].wall(wall, Node.WEST)
+		elif wall.orientation == Wall.HORIZONTAL:
+			self.grid[ wr ][ wc ].wall(wall, Node.SOUTH)
+			self.grid[ wr ][wc+1].wall(wall, Node.SOUTH)
+			self.grid[wr+1][ wc ].wall(wall, Node.NORTH)
+			self.grid[wr+1][wc+1].wall(wall, Node.NORTH)
+		self.walls.append(wall)
 
 	def remove_wall(self, wall):
-		pass
+		"""remove the given Wall object from the board, updating affected Nodes
+
+		It is assumed this wall already has been played.. no checks are performed"""
+		(wr, wc) = wall.position # topleft position (min row and min col)
+		if wall.orientation == Wall.VERTICAL:
+			self.grid[ wr ][ wc ].unwall(wall, Node.EAST)
+			self.grid[wr+1][ wc ].unwall(wall, Node.EAST)
+			self.grid[ wr ][wc+1].unwall(wall, Node.WEST)
+			self.grid[wr+1][wc+1].unwall(wall, Node.WEST)
+		elif wall.orientation == Wall.HORIZONTAL:
+			self.grid[ wr ][ wc ].unwall(wall, Node.SOUTH)
+			self.grid[ wr ][wc+1].unwall(wall, Node.SOUTH)
+			self.grid[wr+1][ wc ].unwall(wall, Node.NORTH)
+			self.grid[wr+1][wc+1].unwall(wall, Node.NORTH)
+		self.walls.remove(wall)
 
 	def path(self, start, goals):
 		"""given start position (row,col) and goals [(row,col),...], returns a list of shortest-path steps
