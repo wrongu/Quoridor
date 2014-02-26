@@ -94,6 +94,24 @@ class Quoridor(object):
 		self.players = []
 		self.player_moves = [] # player_moves[id] is an array of tuples where that player may move to, updated at the start of their turn
 
+	def summary(self):
+		"""return a dict representation (copy such that writes dont matter) of the current state of the game
+
+		Dict structure:
+			{
+				players : { pid : (position, num walls), ... },
+				walls : [(position, orientation), ...]
+			}"""
+		return {
+			'players' : {
+				0 : (players[0].position(), players[0].num_walls()),
+				1 : (players[1].position(), players[1].num_walls()),
+				2 : (players[2].position(), players[2].num_walls()),
+				3 : (players[3].position(), players[3].num_walls())
+			},
+			'walls' : [(w.position, w.orientation) for w in self.walls]
+		}
+
 	@require_state(State.INIT)
 	def create_player(self, pname):
 		'''If game is not already full, add the specified player and return their id
@@ -144,6 +162,7 @@ class Quoridor(object):
 					self.__current_player().update_position(info.position)
 				elif isinstance(info, Wall):
 					self.board.add_wall(info)
+					self.__current_player().use_wall()
 				else:
 					raise StateError("broken internal function turn_is_legal")
 				# game could be over
@@ -173,6 +192,9 @@ class Quoridor(object):
 			else:
 				return (False, "%s cannot move to %s" % (str(self.__current_player()), turnstring))
 		elif len(turnstring) == 3:
+			# check if current player has any walls remaining
+			if self.__current_player().num_walls() <= 0:
+				return (False, "Player %s has no remaining walls" % str(self.__current_player()))
 			# check if it has already been played
 			if turnstring in self.played_walls:
 				return (False, "Wall %s has already been played" % turnstring)
