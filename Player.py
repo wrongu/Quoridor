@@ -2,7 +2,7 @@
 #
 # The Player class represents a generic player (human, ai, networked, etc)
 
-from Quoridor import StateError
+from Exceptions import StateError
 
 class Player(object):
 
@@ -24,17 +24,17 @@ class Player(object):
 	def reached_goal(self):
 		return self.__position in self.__goals
 
-	def num_walls():
+	def num_walls(self):
 		return self.__wall_count
 
-	def position():
+	def position(self):
 		return self.__position
 
-	def use_wall():
+	def use_wall(self):
 		if self.__wall_count > 0:
 			self.__wall_count -= 1
 		else:
 			raise StateError("Player %s has no walls remaining" % self.__name)
 
-	def unuse_wall():
+	def unuse_wall(self):
 		self.__wall_count += 1

@@ -111,7 +111,7 @@ class Grid2D(object):
 	def __getitem__(self, idx):
 		if(isinstance(idx, Node)):
 			return self.__getitem__(idx.position)
-		elif len(idx) == 1:
+		elif isinstance(idx, int):
 			return self.__grid[idx]
 		elif len(idx) == 2:
 			return self.__grid[idx[0]][idx[1]]
@@ -119,7 +119,7 @@ class Grid2D(object):
 	def __setitem__(self, idx, val):
 		if(isinstance(idx, Node)):
 			self.__setitem__(idx.position, val)
-		elif len(idx) == 1:
+		elif isinstance(idx, int):
 			self.__grid[idx] = val
 		elif len(idx) == 2:
 			self.__grid[idx[0]][idx[1]] = val
@@ -141,6 +141,9 @@ class Grid2D(object):
 					raise StopIteration()
 		return self
 
+	def __len__(self):
+		return len(self.__grid)
+
 class Board(object):
 
 	SIZE = 9
@@ -151,6 +154,23 @@ class Board(object):
 		for r in range(Board.SIZE):
 			for c in range(Board.SIZE):
 				self.grid[r][c] = Node((r,c))
+
+	def summary(self):
+		"""returns a Grid2D where grid[r][c] is a single number where the least 4 bits are WESN. that is, north wall is w&0x1"""
+		ret = Grid2D(Board.SIZE, Board.SIZE)
+		for r in range(Board.SIZE):
+			for c in range(Board.SIZE):
+				n = 0
+				if self.grid[r][c].has_wall(Node.NORTH):
+					n |= 0x1
+				if self.grid[r][c].has_wall(Node.SOUTH):
+					n |= 0x2
+				if self.grid[r][c].has_wall(Node.EAST):
+					n |= 0x4
+				if self.grid[r][c].has_wall(Node.WEST):
+					n |= 0x8
+				ret[r][c] = n
+		return ret
 
 	def add_wall(self, wall):
 		"""add the given Wall object to the board, updating affected Nodes

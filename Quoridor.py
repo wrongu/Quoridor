@@ -6,19 +6,14 @@
 # Author: wrongu
 # Date: February 2014
 
-from Board import Board, Node, Wall
+from Board import Board, Node, Wall, Grid2D
 from Player import Player
+from Exceptions import IllegalMove, StateError
 
 class State:
 	INIT = 0
 	PLAYING = 1
 	OVER = 2
-
-class StateError(Exception):
-	pass
-
-class IllegalMove(Exception):
-	pass
 
 def require_state(st):
 	'''A decorator method for requiring certain state
@@ -66,7 +61,7 @@ class Quoridor(object):
 	players = []
 	history = [] # stack of moves, history[0] is first, history[-1] is last
 	future = []  # stack of 'future moves' (i.e. the redo stack). future[-1] is the next move, future[0] is farthest in the future
-	self.played_walls = []
+	played_walls = []
 
 	ALL_WALLS = ['a1h', 'b1h', 'c1h', 'd1h', 'e1h', 'f1h', 'g1h', 'h1h',
 				'a2h', 'b2h', 'c2h', 'd2h', 'e2h', 'f2h', 'g2h', 'h2h',
@@ -99,17 +94,13 @@ class Quoridor(object):
 
 		Dict structure:
 			{
-				players : { pid : (position, num walls), ... },
-				walls : [(position, orientation), ...]
+				players : { position : (name, num walls), ... },
+				board : (see Board.summary)
 			}"""
+		grid = Grid2D(Board.SIZE, Board.SIZE)
 		return {
-			'players' : {
-				0 : (players[0].position(), players[0].num_walls()),
-				1 : (players[1].position(), players[1].num_walls()),
-				2 : (players[2].position(), players[2].num_walls()),
-				3 : (players[3].position(), players[3].num_walls())
-			},
-			'walls' : [(w.position, w.orientation) for w in self.walls]
+			'players' : dict(zip([p.position() for p in self.players], [(str(p), p.num_walls()) for p in self.players])),
+			'board' : self.board.summary()
 		}
 
 	@require_state(State.INIT)
@@ -130,9 +121,10 @@ class Quoridor(object):
 		}
 		if len(self.players) < self.n_players:
 			next_id = len(self.players)
-			self.players.append(Player(name,
+			self.players.append(Player(pname,
 				starts[self.n_players][next_id],
-				goals [self.n_players][next_id]))
+				goals [self.n_players][next_id],
+				5 if self.n_players == 4 else 10))
 			return next_id
 		else:
 			raise StateError("The game is already full!")
