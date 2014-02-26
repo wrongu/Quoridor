@@ -201,6 +201,9 @@ class Quoridor(object):
 		elif len(turnstring) == 3:
 			try:
 				w = Wall.parse(turnstring)
+				(wr, wc) = w.position
+				if wr < 0 or wr+1 >= Board.SIZE or wc < 0 or wc+1 >= Board.SIZE:
+					return (False, "%s is out of bounds" % turnstring)
 			except:
 				return (False, "Cannot parse %s as a Wall" % turnstring)
 			# check if current player has any walls remaining
