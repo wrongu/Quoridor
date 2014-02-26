@@ -39,7 +39,7 @@ class Node(object):
 	@classmethod
 	def parse(cls, notate):
 		"""the inverse of notate... takes a notation string ('a1' - 'i9') and returns the tuple (row, column) ((0,0) - (8,8))"""
-		return (ord(notate[0]) - ord('a'), int(notate[1] - 1))
+		return (ord(notate[0]) - ord('a'), int(notate[1]) - 1)
 
 	def __str__(self):
 		return Node.notate(self.position)
@@ -90,11 +90,7 @@ class Wall(object):
 	@classmethod
 	def cross(cls, notate):
 		"""return the wall that crosses the given wall (just flip h <--> v)"""
-		if notate[2] == Wall.HORIZONTAL:
-			notate[2] = Wall.VERTICAL
-		elif notate[2] == Wall.VERTICAL:
-			notate[2] = Wall.HORIZONTAL
-		return notate
+		return "%s%c" % (notate[0:2], Wall.HORIZONTAL if notate[2] is Wall.VERTICAL else Wall.VERTICAL)
 
 	def __str__(self):
 		return Wall.notate(self.position, self.orientation)
@@ -103,10 +99,10 @@ class Grid2D(object):
 	"""A Grid2D is a wrapped 2D-array with the ability to index using Nodes, tuples, or standard [r][c] notation,
 	and it can be iterated linearly in the order of (0,0), (0,1), (0,2), ..., (1,0), (1,1)"""
 
-	def __init__(self, rows, cols):
+	def __init__(self, rows, cols, val=None):
 		self.__grid = [None for r in range(rows)]
 		for r in range(rows):
-			self.__grid[r] = [None for c in range(cols)]
+			self.__grid[r] = [val for c in range(cols)]
 
 	def __getitem__(self, idx):
 		if(isinstance(idx, Node)):
@@ -195,44 +191,51 @@ class Board(object):
 		It is assumed this wall already has been played.. no checks are performed"""
 		(wr, wc) = wall.position # topleft position (min row and min col)
 		if wall.orientation == Wall.VERTICAL:
-			self.grid[ wr ][ wc ].unwall(wall, Node.EAST)
-			self.grid[wr+1][ wc ].unwall(wall, Node.EAST)
-			self.grid[ wr ][wc+1].unwall(wall, Node.WEST)
-			self.grid[wr+1][wc+1].unwall(wall, Node.WEST)
+			self.grid[ wr ][ wc ].unwall(Node.EAST)
+			self.grid[wr+1][ wc ].unwall(Node.EAST)
+			self.grid[ wr ][wc+1].unwall(Node.WEST)
+			self.grid[wr+1][wc+1].unwall(Node.WEST)
 		elif wall.orientation == Wall.HORIZONTAL:
-			self.grid[ wr ][ wc ].unwall(wall, Node.SOUTH)
-			self.grid[ wr ][wc+1].unwall(wall, Node.SOUTH)
-			self.grid[wr+1][ wc ].unwall(wall, Node.NORTH)
-			self.grid[wr+1][wc+1].unwall(wall, Node.NORTH)
+			self.grid[ wr ][ wc ].unwall(Node.SOUTH)
+			self.grid[ wr ][wc+1].unwall(Node.SOUTH)
+			self.grid[wr+1][ wc ].unwall(Node.NORTH)
+			self.grid[wr+1][wc+1].unwall(Node.NORTH)
 		self.walls.remove(wall)
 
 	def path(self, start, goals):
 		"""given start position (row,col) and goals [(row,col),...], returns a list of shortest-path steps
 		[start, x, y, ..., g] where g is in goals. If no path exists, returns []"""
 		from Queue import Queue
+		# DEBUG
+		print "path", start, "to", goals
 		q = Queue() # a queue of fringe positions
 		steps = Grid2D(Board.SIZE, Board.SIZE) # grid[pos] contains the tuple (next_r, next_c) of the next path position from pos
+		sentinel = (-1,-1)
 		for g in goals:
 			q.put(g)
+			steps[g] = sentinel # mark end
 		while not q.empty():
 			fringe = q.get()
 			# check if we made it
 			if fringe == start:
 				break
-			for n in self.__neighbors(fringe):
+			for n in self.neighbors(fringe):
 				# step to neighbors if not yet visited
 				if steps[n] is None:
 					steps[n] = fringe
+					q.put(n)
 		# iff path was found, steps[start] will have a value
 		if steps[start] is None:
+			print "could not be found"
 			return []
 		else:
 			# follow the trail left in 'steps' from start to goal
 			path = [start]
 			next = steps[path[-1]]
-			while next is not None:
+			while next is not sentinel:
 				path.append(next)
 				next = steps[path[-1]]
+			print path
 			return path
 
 	def can_step(self, posA, posB):

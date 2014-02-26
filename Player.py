@@ -15,9 +15,6 @@ class Player(object):
 	def __str__(self):
 		return str(self.__name)
 
-	def get_position(self):
-		return self.__position
-
 	def update_position(self, newpos):
 		self.__position = newpos
 
@@ -29,6 +26,9 @@ class Player(object):
 
 	def position(self):
 		return self.__position
+
+	def goals(self):
+		return self.__goals
 
 	def use_wall(self):
 		if self.__wall_count > 0:

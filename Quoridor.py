@@ -87,7 +87,7 @@ class Quoridor(object):
 		self.current_player = -1
 		self.n_players = n_players
 		self.players = []
-		self.player_moves = [] # player_moves[id] is an array of tuples where that player may move to, updated at the start of their turn
+		self.player_moves = [] # player_moves is an array of tuples where the current player may move to, updated at the start of their turn
 
 	def summary(self):
 		"""return a dict representation (copy such that writes dont matter) of the current state of the game
@@ -138,6 +138,7 @@ class Quoridor(object):
 		if len(self.players) == self.n_players:
 			self.current_player = 0
 			self.state = State.PLAYING
+			self.player_moves = self.__prep_moves(self.current_player)
 		else:
 			raise StateError("Cannot start a game with %d players" % len(self.players))
 
@@ -166,7 +167,7 @@ class Quoridor(object):
 					# advance to next player
 					self.current_player = (self.current_player + 1) % len(self.players)
 					# update moves now that it's a new player's turn
-					self.__prep_moves(self.current_player)
+					self.player_moves = self.__prep_moves(self.current_player)
 			else:
 				raise IllegalMove(info)
 		else:
@@ -178,12 +179,19 @@ class Quoridor(object):
 			# MOVE
 			# self.player_moves is updated at the start of this turn with all locations where the current
 			# player may move.. so this is a simple lookup
-			n = Node.parse(turnstring)
-			if n.position in self.player_moves[self.current_player]:
-				return (True, n)
+			try:
+				n = Node.parse(turnstring)
+			except:
+				return (False, "Cannot parse %s as a Node" % turnstring)
+			if n in self.player_moves:
+				return (True, Node(n))
 			else:
 				return (False, "%s cannot move to %s" % (str(self.__current_player()), turnstring))
 		elif len(turnstring) == 3:
+			try:
+				w = Wall.parse(turnstring)
+			except:
+				return (False, "Cannot parse %s as a Wall" % turnstring)
 			# check if current player has any walls remaining
 			if self.__current_player().num_walls() <= 0:
 				return (False, "Player %s has no remaining walls" % str(self.__current_player()))
@@ -195,13 +203,11 @@ class Quoridor(object):
 			if Wall.cross(turnstring) in self.played_walls:
 				return (False, "Walls may not cross")
 			
-			# check players' paths to goals
-			w = Wall.parse(turnstring)
 			## ADD WALL ##
 			self.board.add_wall(w)
 			# check player paths
 			for p in self.players:
-				if not self.board.path(p.position, p.goals):
+				if not self.board.path(p.position(), p.goals()):
 					self.board.remove_wall(w)
 					return (False, "Wall cuts off the path for %s" % str(p))
 			
@@ -224,10 +230,10 @@ class Quoridor(object):
 	@require_state(State.PLAYING)
 	def __prep_moves(self, pid):
 		pl = self.players[pid]
-		(pr, pc) = pl.position
+		(pr, pc) = pl.position()
 		# get all adjacent squares (0 to 4 of them)
-		adjacents = set(self.board.neighbors(pl.position))
-		players_pos = set([p.position for p in self.players])
+		adjacents = set(self.board.neighbors(pl.position()))
+		players_pos = set([p.position() for p in self.players])
 		# free to step to any adjacent squares that do not have players on them
 		steppable = list(adjacents - players_pos)
 		# further processing required if player is adjacent - pl can jump
@@ -243,7 +249,7 @@ class Quoridor(object):
 			else:
 				# jump is blocked either by a wall or by a 3rd player. this is where diagonal moves are allowed
 				two_away = (simple_next[0] + dir_r, simple_next[1] + dir_c)
-				diagonals_set = set(self.board.neighbors(simple_next)) - set([pl.position, two_away])
+				diagonals_set = set(self.board.neighbors(simple_next)) - set([pl.position(), two_away])
 				steppable.extend(list(diagonals_set))
 		return steppable
  

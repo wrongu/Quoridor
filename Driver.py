@@ -1,6 +1,6 @@
 from Quoridor import Quoridor, State
 from Exceptions import IllegalMove, StateError
-from Board import Board, Grid2D
+from Board import Board, Grid2D, Node
 from sys import argv
 import math
 
@@ -75,6 +75,7 @@ if __name__ == '__main__':
 		try:
 			state = QGame.summary()
 			print board_string(state)
+			print "moveable:", [Node.notate(pos) for pos in QGame.player_moves]
 			prompt = "%s> " % (name1 if cur_play == id1 else name2)
 			move = raw_input("\n%s" % prompt)
 			QGame.do_turn(cur_play, move)
