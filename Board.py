@@ -206,8 +206,6 @@ class Board(object):
 		"""given start position (row,col) and goals [(row,col),...], returns a list of shortest-path steps
 		[start, x, y, ..., g] where g is in goals. If no path exists, returns []"""
 		from Queue import Queue
-		# DEBUG
-		print "path", start, "to", goals
 		q = Queue() # a queue of fringe positions
 		steps = Grid2D(Board.SIZE, Board.SIZE) # grid[pos] contains the tuple (next_r, next_c) of the next path position from pos
 		sentinel = (-1,-1)
@@ -226,7 +224,6 @@ class Board(object):
 					q.put(n)
 		# iff path was found, steps[start] will have a value
 		if steps[start] is None:
-			print "could not be found"
 			return []
 		else:
 			# follow the trail left in 'steps' from start to goal
@@ -235,7 +232,6 @@ class Board(object):
 			while next is not sentinel:
 				path.append(next)
 				next = steps[path[-1]]
-			print path
 			return path
 
 	def can_step(self, posA, posB):
@@ -254,18 +250,30 @@ class Board(object):
 		elif ca < cb:
 			return not (self.grid[ra][ca].has_wall(Node.EAST))
 
+	@classmethod
+	def __flip_direction(cls, direction):
+		if direction == Node.NORTH:
+			return Node.SOUTH
+		elif direction == Node.SOUTH:
+			return Node.NORTH
+		elif direction == Node.EAST:
+			return Node.WEST
+		elif direction == Node.WEST:
+			return Node.EAST
+
 	def neighbors(self, pos):
 		"""given a tuple position or Node, return the tuple positions next to and accessible by that position"""
 		if isinstance(pos, Node):
 			pos = pos.position
+		(r,c) = pos
 		neighbors = [
-			(Node.NORTH, (pos[0]-1, pos[1]) if pos[0]-1 >= 0 else None),
-			(Node.SOUTH, (pos[0]+1, pos[1]) if pos[0]+1 < Board.SIZE else None),
-			(Node.EAST , (pos[0], pos[1]+1) if pos[1]+1 < Board.SIZE else None),
-			(Node.WEST , (pos[0], pos[1]-1) if pos[1]-1 >= 0 else None)
+			(Node.NORTH, (r-1, c) if r-1 >= 0 else None),
+			(Node.SOUTH, (r+1, c) if r+1 < Board.SIZE else None),
+			(Node.EAST , (r, c+1) if c+1 < Board.SIZE else None),
+			(Node.WEST , (r, c-1) if c-1 >= 0 else None)
 		]
 		retlist = []
 		for direction, npos in neighbors:
-			if npos and not self.grid[npos].has_wall(direction):
+			if npos and not self.grid[npos].has_wall(Board.__flip_direction(direction)):
 				retlist.append(npos)
 		return retlist

@@ -42,10 +42,10 @@ def board_string(state_dict):
 						st = st[0:20] + "#####"
 					if board[r-1][c-1] & 0x4:
 						# east wall
-						st[4] = st[9] = st[14] = st[19] = st[24] = "#"
+						st = "".join([st[(5*i):(5*i+4)]+"#" for i in range(5)])
 					if board[r-1][c-1] & 0x8:
 						# west wall
-						st[0] = st[5] = st[10] = st[15] = st[20] = "#"
+						st = "".join(["#"+st[(5*i+1):(5*i+5)] for i in range(5)])
 					st_cells[r][c] = st
 
 	st_final = ""

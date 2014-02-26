@@ -155,6 +155,7 @@ class Quoridor(object):
 					self.__current_player().update_position(info.position)
 				elif isinstance(info, Wall):
 					self.board.add_wall(info)
+					self.played_walls.append(turnstring)
 					self.__current_player().use_wall()
 				else:
 					raise StateError("broken internal function turn_is_legal")
@@ -249,7 +250,7 @@ class Quoridor(object):
 			else:
 				# jump is blocked either by a wall or by a 3rd player. this is where diagonal moves are allowed
 				two_away = (simple_next[0] + dir_r, simple_next[1] + dir_c)
-				diagonals_set = set(self.board.neighbors(simple_next)) - set([pl.position(), two_away])
+				diagonals_set = set(self.board.neighbors((jr,jc))) - set([pl.position(), two_away])
 				steppable.extend(list(diagonals_set))
 		return steppable
  
