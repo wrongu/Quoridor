@@ -31,12 +31,12 @@ class Node(object):
 	@classmethod
 	def notate(cls, row_col):
 		"""return the string notation of the given (row, column) tuple as described in Quoridor.py"""
-		return "%d%c" % (row_col[0]+1, chr(ord('a') + row_col[1]))
+		return "%c%d" % (chr(ord('a') + row_col[0]), row_col[1]+1)
 
 	@classmethod
 	def parse(cls, notate):
-		"""the inverse of notate... takes a notation string ('1a' - '9i') and returns the tuple (row, column) ((0,0) - (8,8))"""
-		return (int(notate[0] - 1), ord(notate[1]) - ord('a'))
+		"""the inverse of notate... takes a notation string ('a1' - 'i9') and returns the tuple (row, column) ((0,0) - (8,8))"""
+		return (ord(notate[0]) - ord('a'), int(notate[1] - 1))
 
 	def __str__(self):
 		return Node.notate(self.position)
@@ -45,8 +45,8 @@ class Wall(object):
 	"""A Wall spans 2 grid spaces and can be either vertical or horizontal.
 	"""
 
-	VERTICAL = 'V'
-	HORIZONTAL = 'H'
+	VERTICAL = 'v'
+	HORIZONTAL = 'h'
 
 	def __init__(self, topleft, orient):
 		self.orientation = orient
@@ -72,22 +72,23 @@ class Wall(object):
 	@classmethod
 	def notate(cls, topleft, orient):
 		"""return the string notation of this Wall as described in Quoridor.py"""
-		return "%c%s" % (orient, Node.notate(topleft))
+		return "%s%c" % (Node.notate(topleft), orient)
 
 	@classmethod
 	def parse(cls, notate):
 		"""the inverse of notate... take a notation string and return a wall object"""
-		orient = notate[0]
-		pos = Node.parse(notate[1:])
+		orient = notate[2]
+		pos = Node.parse(notate[0:2])
 		return Wall(pos, orient)
 
 	@classmethod
 	def cross(cls, notate):
-		"""return the wall that crosses the given wall"""
-		if notate[0] == Wall.HORIZONTAL:
-			return Wall.VERTICAL + notate[1:]
-		elif notate[0] == Wall.VERTICAL:
-			return Wall.HORIZONTAL + notate[1:]
+		"""return the wall that crosses the given wall (just flip h <--> v)"""
+		if notate[2] == Wall.HORIZONTAL:
+			notate[2] = Wall.VERTICAL
+		elif notate[2] == Wall.VERTICAL:
+			notate[2] = Wall.HORIZONTAL
+		return notate
 
 	def __str__(self):
 		return Wall.notate(self.position, self.orientation)
@@ -196,7 +197,7 @@ class Board(object):
 		elif ca < cb:
 			return not (self.grid[ra][ca].has_wall(Node.EAST))
 
-	def __neighbors(self, pos):
+	def neighbors(self, pos):
 		"""given a tuple position or Node, return the tuple positions next to and accessible by that position"""
 		if isinstance(pos, Node):
 			pos = pos.position
