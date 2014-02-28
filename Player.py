@@ -12,6 +12,10 @@ class Player(object):
 		self.__goals = goals
 		self.__wall_count = start_walls
 
+	def copy(self):
+		PCopy = Player(self.__name, self.__position, self.__goals, self.__wall_count)
+		return PCopy
+
 	def __str__(self):
 		return str(self.__name)
 

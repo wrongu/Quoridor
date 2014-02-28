@@ -169,6 +169,13 @@ class Board(object):
 			for c in range(Board.SIZE):
 				self.grid[r][c] = Node((r,c))
 
+	def copy(self):
+		BCopy = Board()
+		BCopy.walls = [Wall.parse(Wall.notate(w)) for w in self.walls]
+		for w in BCopy.walls:
+			BCopy.add_wall(w)
+		return BCopy
+
 	def summary(self):
 		"""returns a Grid2D where grid[r][c] is a single number where the least 4 bits are WESN. that is, north wall is w&0x1"""
 		ret = Grid2D(Board.SIZE, Board.SIZE)

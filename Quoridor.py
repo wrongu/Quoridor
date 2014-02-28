@@ -32,6 +32,15 @@ def require_state(st):
 		return wrapper
 	return decorator
 
+def copy_only(fn):
+	'''A decorator method that only works if the object is a copy'''
+	def wrapper(inst, *args):
+		if inst.is_copy():
+			return fn(inst, *args)
+		else:
+			raise StateError("%s() may only be called on copies of the original state" % fn.__name__)
+	return wrapper
+
 class Quoridor(object):
 	'''A class representing a single game (2 or 4 player) of Quoridor.
 
@@ -87,16 +96,44 @@ class Quoridor(object):
 		self.__current_player = -1
 		self.__n_players = n_players
 		self.__players = []
-		self.__player_moves = [] # player_moves is an array of tuples where the current player may move to, updated at the start of their turn
+		self.__player_moves = [] # player_moves is an array of square notations where the current player may move to, updated at the start of their turn
+		self.__original = True
 
 	def state(self):
 		return self.__state
 
+	@require_state(State.PLAYING)
 	def moveables(self):
 		return self.__player_moves
 
 	def copy(self):
-		pass
+		QCopy = Quoridor(self.__n_players)
+		QCopy.__state = self.__state
+		QCopy.__played_walls = [w for w in self.__played_walls]
+		QCopy.__board = self.__board.copy()
+		QCopy.__current_player = self.__current_player
+		QCopy.__n_players = self.__n_players
+		QCopy.__players = [p.copy() for p in self.__players]
+		QCopy.__player_moves = [mv for mv in self.__player_moves]
+		QCopy.__original = False
+		return QCopy
+
+	@copy_only
+	def get_player(self, pid):
+		return self.__players[pid]
+
+	@copy_only
+	def get_board(self):
+		return self.__board
+
+	@copy_only
+	def others(self, pid):
+		others = self.__players[0:pid]
+		others.extend(self.__players[(pid+1):])
+		return others
+
+	def is_copy(self):
+		return self.__original is False
 
 	@require_state([State.PLAYING, State.OVER])
 	def summary(self):
@@ -239,7 +276,7 @@ class Quoridor(object):
 
 	@require_state(State.PLAYING)
 	def all_turns(self):
-		lst = [mv for mv in self.__player_moves]
+		lst = [Node.notate(mv) for mv in self.__player_moves]
 		lst.extend(filter(lambda w : self.turn_is_legal(w)[0], Quoridor.ALL_WALLS))
 		return lst
 

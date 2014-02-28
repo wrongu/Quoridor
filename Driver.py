@@ -1,4 +1,5 @@
 from Quoridor import Quoridor, State
+from AlphaBetaAI import AlphaBetaAI2P as AI
 from Exceptions import IllegalMove, StateError
 from Board import Board, Grid2D, Node
 from sys import argv
@@ -78,8 +79,18 @@ if __name__ == '__main__':
 			print "moveable:", [Node.notate(pos) for pos in QGame.moveables()]
 			prompt = "%s> " % (name1 if cur_play == id1 else name2)
 			move = raw_input("\n%s" % prompt)
-			QGame.do_turn(cur_play, move)
-			cur_play = id1 if cur_play == id2 else id2
+			# special processing
+			if move != '':
+				if move[0:2] == 'ai':
+					print "USING ALPHA-BETA AI"
+					ai = AI(QGame, cur_play)
+					ai.process(int(move[2:]))
+				elif move[0] == 'q':
+					raise KeyboardInterrupt()
+				else:
+					# treat input as a normal move
+					QGame.do_turn(cur_play, move)
+					cur_play = id1 if cur_play == id2 else id2
 		except IllegalMove as im:
 			print "ILLEGAL MOVE", im
 		except StateError as se:
