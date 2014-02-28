@@ -79,13 +79,14 @@ if __name__ == '__main__':
 
 	def print_prompt():
 		print "moveable:", [Node.notate(pos) for pos in QGame.moveables()]
-		prompt = "%s>" % (name1 if cur_play == id1 else name2)
+		prompt = "%s>" % (name1 if QGame.get_current_pid() == id1 else name2)
 		print "\n%s" % prompt,
 
 	def turn_update(pid, t):
 		QGame.do_turn(pid, t)
 		redraw()
-		print_prompt()
+		if not QGame.game_is_over():
+			print_prompt()
 
 	redraw()
 	print_prompt()

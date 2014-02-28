@@ -28,7 +28,7 @@ def require_state(st):
 			if inst.state() in st:
 				return fn(inst, *args)
 			else:
-				raise StateError("Bad method call %s() while in state %d" % (fn.__name__, inst.state))
+				raise StateError("Bad method call %s() while in state %d" % (fn.__name__, inst.state()))
 		return wrapper
 	return decorator
 
@@ -215,7 +215,7 @@ class Quoridor(object):
 				else:
 					raise StateError("broken internal function turn_is_legal")
 				# game could be over
-				if self.__game_is_over():
+				if self.__compute_game_over():
 					self.__state = State.OVER
 					# note that by changing the state, no futher moves may be made, and "current_player"
 					# is now the winning player
@@ -329,10 +329,13 @@ class Quoridor(object):
 	def __player(self):
 		return self.__players[self.__current_player]
 
-	def __game_is_over(self):
+	def __compute_game_over(self):
 		for p in self.__players:
 			if p.reached_goal():
 				return True
+
+	def game_is_over(self):
+		return self.state == State.OVER
 
 if __name__ == '__main__':
 	# Testing...
