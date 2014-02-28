@@ -136,6 +136,10 @@ class Quoridor(object):
 		others.extend(self.__players[(pid+1):])
 		return others
 
+	# TODO remove this - dangerous!
+	def get_current_pid(self):
+		return self.__current_player
+
 	def is_copy(self):
 		return self.__original is False
 

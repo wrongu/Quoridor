@@ -76,14 +76,23 @@ if __name__ == '__main__':
 	def redraw():
 		print board_string(QGame.summary())
 	QGame.register_callback(redraw)
-	redraw()
 
+	def print_prompt():
+		print "moveable:", [Node.notate(pos) for pos in QGame.moveables()]
+		prompt = "%s>" % (name1 if cur_play == id1 else name2)
+		print "\n%s" % prompt,
+
+	def turn_update(pid, t):
+		QGame.do_turn(pid, t)
+		redraw()
+		print_prompt()
+
+	redraw()
+	print_prompt()
 	while QGame.state != State.OVER:
 		try:
-			state = QGame.summary()
-			print "moveable:", [Node.notate(pos) for pos in QGame.moveables()]
-			prompt = "%s> " % (name1 if cur_play == id1 else name2)
-			move = raw_input("\n%s" % prompt)
+			move = raw_input()
+			cur_play = QGame.get_current_pid()
 			# special processing
 			if move != '':
 				if move[0:2] == 'ai':
@@ -92,13 +101,13 @@ if __name__ == '__main__':
 					else:
 						print "USING ALPHA-BETA AI"
 						ai = AI(QGame, cur_play)
-						ai.process(int(move[2:]))
+						depth = int(move[2:].strip())
+						ai.process(depth, lambda t : turn_update(cur_play, t))
 				elif move[0] == 'q':
 					raise KeyboardInterrupt()
 				else:
 					# treat input as a normal move
-					QGame.do_turn(cur_play, move)
-					cur_play = id1 if cur_play == id2 else id2
+					turn_update(cur_play, move)
 		except IllegalMove as im:
 			print "ILLEGAL MOVE", im
 		except StateError as se:
@@ -111,7 +120,10 @@ if __name__ == '__main__':
 				if i != '':
 					if i[0] == 'y' or i[0] == 'Y':
 						break
+					elif i == 'st':
+						import traceback
+						print traceback.format_exc()
 	print "-- done --"
 	if QGame.state() == State.OVER:
-		print board_string(state)
+		redraw()
 		print "Winner was", QGame.players[QGame.current_player]
