@@ -171,8 +171,9 @@ class Board(object):
 
 	def copy(self):
 		BCopy = Board()
-		BCopy.walls = [Wall.parse(str(w)) for w in self.walls]
-		for w in BCopy.walls:
+		# should be safe to add all the same objects since walls are never manipulated after creation
+		# TODO - strict singleton?
+		for w in self.walls:
 			BCopy.add_wall(w)
 		return BCopy
 
