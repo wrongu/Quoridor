@@ -171,7 +171,7 @@ class Board(object):
 
 	def copy(self):
 		BCopy = Board()
-		BCopy.walls = [Wall.parse(Wall.notate(w)) for w in self.walls]
+		BCopy.walls = [Wall.parse(str(w)) for w in self.walls]
 		for w in BCopy.walls:
 			BCopy.add_wall(w)
 		return BCopy

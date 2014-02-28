@@ -8,14 +8,22 @@ class AlphaBetaAI2P(object):
 		self.game = qgame
 		self.processing = False
 		self.leaves = 0
+		self.thread = None
+
+	def kill(self):
+		if self.thread and self.processing:
+			self.thread.exit()
+
+	def is_processing(self):
+		return self.processing
 
 	def process(self, depth):
 		"""Start processing for turn in a separate thread"""
 		# processing acts as a lock
 		if not self.processing:
-			th = Thread(target=self.__alpha_beta_top, args = (self.game.copy(), self.player, depth))
-			th.daemon = True
-			th.start()
+			self.thread = Thread(target=self.__alpha_beta_top, args = (self.game.copy(), self.player, depth))
+			self.thread.daemon = True
+			self.thread.start()
 
 	def __eval(self, state):
 		pl = state.get_player(self.player)
@@ -42,7 +50,7 @@ class AlphaBetaAI2P(object):
 		# base case
 		if depth == 0:
 			self.leaves += 1
-			return self.__eval(state)
+			return ('', self.__eval(state))
 		best = ''
 		# recursive case
 		for turn in state.all_turns():
@@ -52,7 +60,7 @@ class AlphaBetaAI2P(object):
 			pid = self.player if minmax==1 else 1-self.player
 			scopy.do_turn(pid, turn)
 			# recurse
-			(t, value) = self.__alpha_beta(depth-1, scopy, -minmax, -beta, -alpha)
+			(_, value) = self.__alpha_beta(depth-1, scopy, -minmax, -beta, -alpha)
 			value *= minmax
 			# if value is better than what we've found so far, record it
 			# TODO some randomization

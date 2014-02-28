@@ -98,6 +98,7 @@ class Quoridor(object):
 		self.__players = []
 		self.__player_moves = [] # player_moves is an array of square notations where the current player may move to, updated at the start of their turn
 		self.__original = True
+		self.__callbacks = []
 
 	def state(self):
 		return self.__state
@@ -117,6 +118,9 @@ class Quoridor(object):
 		QCopy.__player_moves = [mv for mv in self.__player_moves]
 		QCopy.__original = False
 		return QCopy
+
+	def register_callback(self, fn):
+		self.__callbacks.append(fn)
 
 	@copy_only
 	def get_player(self, pid):
@@ -216,6 +220,9 @@ class Quoridor(object):
 					self.__current_player = (self.__current_player + 1) % len(self.__players)
 					# update moves now that it's a new player's turn
 					self.__player_moves = self.__prep_moves(self.__current_player)
+				# on successful turn, do callbacks
+				for fn in self.__callbacks:
+					fn()
 			else:
 				raise IllegalMove(info)
 		else:

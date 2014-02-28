@@ -71,20 +71,28 @@ if __name__ == '__main__':
 	QGame.begin_game()
 
 	cur_play = id1
+	ai = None
+
+	def redraw():
+		print board_string(QGame.summary())
+	QGame.register_callback(redraw)
+	redraw()
 
 	while QGame.state != State.OVER:
 		try:
 			state = QGame.summary()
-			print board_string(state)
 			print "moveable:", [Node.notate(pos) for pos in QGame.moveables()]
 			prompt = "%s> " % (name1 if cur_play == id1 else name2)
 			move = raw_input("\n%s" % prompt)
 			# special processing
 			if move != '':
 				if move[0:2] == 'ai':
-					print "USING ALPHA-BETA AI"
-					ai = AI(QGame, cur_play)
-					ai.process(int(move[2:]))
+					if ai and ai.is_processing():
+						print "AI already in use..?"
+					else:
+						print "USING ALPHA-BETA AI"
+						ai = AI(QGame, cur_play)
+						ai.process(int(move[2:]))
 				elif move[0] == 'q':
 					raise KeyboardInterrupt()
 				else:
@@ -96,10 +104,13 @@ if __name__ == '__main__':
 		except StateError as se:
 			print "STATE ERROR", se
 		except KeyboardInterrupt as ki:
-			i = raw_input("\nreally quit? (y/N)")
-			if i != '':
-				if i[0] == 'y' or i[0] == 'Y':
-					break
+			if ai.is_processing():
+				ai.kill()
+			else:
+				i = raw_input("\nreally quit? (y/N)")
+				if i != '':
+					if i[0] == 'y' or i[0] == 'Y':
+						break
 	print "-- done --"
 	if QGame.state() == State.OVER:
 		print board_string(state)
