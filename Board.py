@@ -5,6 +5,8 @@
 # Author: wrongu
 # Date: February 2014
 
+from collections import deque
+
 class Node(object):
 	""" A Node is a square on the SIZE x SIZE grid references to up to 4 adjacent walls.
 	"""
@@ -228,15 +230,13 @@ class Board(object):
 	def path(self, start, goals):
 		"""given start position (row,col) and goals [(row,col),...], returns a list of shortest-path steps
 		[start, x, y, ..., g] where g is in goals. If no path exists, returns []"""
-		from Queue import Queue
-		q = Queue(Board.SIZE * Board.SIZE) # a queue of fringe positions
+		q = deque(goals, Board.SIZE * Board.SIZE) # a queue of fringe positions
 		steps = Grid2D(Board.SIZE, Board.SIZE) # grid[pos] contains the tuple (next_r, next_c) of the next path position from pos
 		sentinel = (-1,-1)
 		for g in goals:
-			q.put(g)
 			steps[g] = sentinel # mark end
-		while not q.empty():
-			fringe = q.get()
+		while len(q) > 0:
+			fringe = q.pop()
 			# check if we made it
 			if fringe == start:
 				break
@@ -244,7 +244,7 @@ class Board(object):
 				# step to neighbors if not yet visited
 				if steps[n] is None:
 					steps[n] = fringe
-					q.put(n)
+					q.append(n)
 		# iff path was found, steps[start] will have a value
 		if steps[start] is None:
 			return []
