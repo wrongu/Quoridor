@@ -8,28 +8,31 @@
 class Node(object):
 	""" A Node is a square on the SIZE x SIZE grid references to up to 4 adjacent walls.
 	"""
+
 	NORTH = 0 # row-
-	EAST = 1  # col+
-	SOUTH = 2 # row+
-	WEST = 3  # col-
+	SOUTH = 1 # row+
+	EAST  = 2 # col+
+	WEST  = 3 # col-
+
+	__slots__ =  ('walls', 'position')
 
 	def __init__(self, pos):
-		self.walls = [None]*4 # NORTH, EAST, SOUTH, WEST
+		self.walls = 0 # least-significant 4 bits correspond to NSEW
 		self.position = pos
 
 	def __eq__(self, other):
 		return isinstance(other, Node) and other.position == self.position
 
-	def wall(self, w, direction):
-		"""Add the given wall to this Node's list of adjacent walls"""
-		self.walls[direction] = w
+	def wall(self, direction):
+		"""Record the wall in the given direction"""
+		self.walls |= 1 << direction
 
 	def unwall(self, direction):
 		"""remove the wall (if it exists) indicated by the given direction"""
-		self.walls[direction] = None
+		self.walls &= ~(1 << direction)
 
 	def has_wall(self, direction):
-		return self.walls[direction] != None
+		return self.walls & (1 << direction)
 
 	@classmethod
 	def notate(cls, row_col):
@@ -50,6 +53,8 @@ class Wall(object):
 
 	VERTICAL = 'v'
 	HORIZONTAL = 'h'
+
+	__slots__ = ('orientation', 'position')
 
 	def __init__(self, topleft, orient):
 		self.orientation = orient
@@ -174,15 +179,15 @@ class Board(object):
 		It is assumed this wall is valid by the rules of the game.. no checks are performed"""
 		(wr, wc) = wall.position # topleft position (min row and min col)
 		if wall.orientation == Wall.VERTICAL:
-			self.grid[ wr ,  wc ].wall(wall, Node.EAST)
-			self.grid[wr+1,  wc ].wall(wall, Node.EAST)
-			self.grid[ wr , wc+1].wall(wall, Node.WEST)
-			self.grid[wr+1, wc+1].wall(wall, Node.WEST)
+			self.grid[ wr ,  wc ].wall(Node.EAST)
+			self.grid[wr+1,  wc ].wall(Node.EAST)
+			self.grid[ wr , wc+1].wall(Node.WEST)
+			self.grid[wr+1, wc+1].wall(Node.WEST)
 		elif wall.orientation == Wall.HORIZONTAL:
-			self.grid[ wr ,  wc ].wall(wall, Node.SOUTH)
-			self.grid[ wr , wc+1].wall(wall, Node.SOUTH)
-			self.grid[wr+1,  wc ].wall(wall, Node.NORTH)
-			self.grid[wr+1, wc+1].wall(wall, Node.NORTH)
+			self.grid[ wr ,  wc ].wall(Node.SOUTH)
+			self.grid[ wr , wc+1].wall(Node.SOUTH)
+			self.grid[wr+1,  wc ].wall(Node.NORTH)
+			self.grid[wr+1, wc+1].wall(Node.NORTH)
 		self.walls.append(wall)
 
 	def remove_wall(self, wall):
@@ -206,7 +211,7 @@ class Board(object):
 		"""given start position (row,col) and goals [(row,col),...], returns a list of shortest-path steps
 		[start, x, y, ..., g] where g is in goals. If no path exists, returns []"""
 		from Queue import Queue
-		q = Queue() # a queue of fringe positions
+		q = Queue(Board.SIZE * Board.SIZE) # a queue of fringe positions
 		steps = Grid2D(Board.SIZE, Board.SIZE) # grid[pos] contains the tuple (next_r, next_c) of the next path position from pos
 		sentinel = (-1,-1)
 		for g in goals:
@@ -250,21 +255,8 @@ class Board(object):
 		elif ca < cb:
 			return not (self.grid[(ra,ca)].has_wall(Node.EAST))
 
-	@classmethod
-	def __flip_direction(cls, direction):
-		if direction == Node.NORTH:
-			return Node.SOUTH
-		elif direction == Node.SOUTH:
-			return Node.NORTH
-		elif direction == Node.EAST:
-			return Node.WEST
-		elif direction == Node.WEST:
-			return Node.EAST
-
 	def neighbors(self, pos):
 		"""given a tuple position or Node, return the tuple positions next to and accessible by that position"""
-		if isinstance(pos, Node):
-			pos = pos.position
 		(r,c) = pos
 		neighbors = [
 			(Node.NORTH, (r-1, c) if r-1 >= 0 else None),
@@ -274,6 +266,6 @@ class Board(object):
 		]
 		retlist = []
 		for direction, npos in neighbors:
-			if npos and not self.grid[npos].has_wall(Board.__flip_direction(direction)):
+			if npos and not self.grid[pos].has_wall(direction):
 				retlist.append(npos)
 		return retlist
