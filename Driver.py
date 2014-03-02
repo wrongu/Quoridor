@@ -19,13 +19,13 @@ def board_string(state_dict):
 		if r == 0:
 			for c in range(Board.SIZE + 1):
 				if c == 0:
-					st_cells[r][c] = "".join([" "]*25)
+					st_cells[(r,c)] = "".join([" "]*25)
 				else:
-					st_cells[r][c] = "            %d    |       " % c 
+					st_cells[(r,c)] = "            %d    |       " % c 
 		else:
 			for c in range(Board.SIZE + 1):
 				if c == 0:
-					st_cells[r][c] = "            %c-           " % chr(ord('a') + r - 1)
+					st_cells[(r,c)] = "            %c-           " % chr(ord('a') + r - 1)
 				else:
 					st = ("     " #  0 - 4
 						  " +-+ " #  5 - 9
@@ -47,7 +47,7 @@ def board_string(state_dict):
 					if board[r-1][c-1] & 0x8:
 						# west wall
 						st = "".join(["#"+st[(5*i+1):(5*i+5)] for i in range(5)])
-					st_cells[r][c] = st
+					st_cells[(r,c)] = st
 
 	st_final = ""
 	for cr in range(5*len(st_cells)):
@@ -56,7 +56,7 @@ def board_string(state_dict):
 		for cc in range(5*len(st_cells)):
 			ci = (cc / 5)
 			sub_c = cc - 5*ci
-			st_final += st_cells[ri][ci][5*sub_r + sub_c]
+			st_final += st_cells[(ri,ci)][5*sub_r + sub_c]
 		st_final += "\n"
 	return st_final
 

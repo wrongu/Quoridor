@@ -152,7 +152,6 @@ class Quoridor(object):
 				players : { position : (name, num walls), ... },
 				board : (see Board.summary)
 			}"""
-		grid = Grid2D(Board.SIZE, Board.SIZE)
 		return {
 			'players' : dict(zip([p.position() for p in self.__players], [(str(p), p.num_walls()) for p in self.__players])),
 			'board' : self.__board.summary()

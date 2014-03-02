@@ -114,8 +114,9 @@ class Wall(object):
 		return Wall.notate(self.position, self.orientation)
 
 class Grid2D(object):
-	"""A Grid2D is a wrapped 2D-array with the ability to index using Nodes, tuples, or standard [r][c] notation,
-	and it can be iterated linearly in the order of (0,0), (0,1), (0,2), ..., (1,0), (1,1)"""
+	"""A Grid2D is a wrapped 1D-array with the ability to index as 2D using tuples"""
+
+	__slots__ = ('__grid')
 
 	def __init__(self, rows, cols, val=None):
 		self.__grid = [None for r in range(rows)]
@@ -123,51 +124,24 @@ class Grid2D(object):
 			self.__grid[r] = [val for c in range(cols)]
 
 	def __getitem__(self, idx):
-		if(isinstance(idx, Node)):
-			return self.__getitem__(idx.position)
-		elif isinstance(idx, int):
-			return self.__grid[idx]
-		elif len(idx) == 2:
-			return self.__grid[idx[0]][idx[1]]
+		"""provides [(r,c)] notation for accessing the grid"""
+		return self.__grid[idx[0]][idx[1]]
 
 	def __setitem__(self, idx, val):
-		if(isinstance(idx, Node)):
-			self.__setitem__(idx.position, val)
-		elif isinstance(idx, int):
-			self.__grid[idx] = val
-		elif len(idx) == 2:
-			self.__grid[idx[0]][idx[1]] = val
-
-	def __iter__(self):
-		class IterPosition(object):
-			def __init__(it):
-				it.cr = 0
-				it.cc = 0
-			def next(it):
-				if it.cr < len(self.__grid):
-					itm = self[it.cr][it.cc]
-					it.cc += 1
-					if it.cc >= len(self.__grid[0]):
-						it.cr += 1
-						it.cc = 0
-					return itm
-				else:
-					raise StopIteration()
-		return self
-
-	def __len__(self):
-		return len(self.__grid)
+		"""provides [(r,c)] = val notation"""
+		self.__grid[idx[0]][idx[1]] = val
 
 class Board(object):
 
 	SIZE = 9
+	__slots__ = ('grid', 'walls')
 
 	def __init__(self):
 		self.grid = Grid2D(Board.SIZE,Board.SIZE)
 		self.walls = []
 		for r in range(Board.SIZE):
 			for c in range(Board.SIZE):
-				self.grid[r][c] = Node((r,c))
+				self.grid[r,c] = Node((r,c))
 
 	def copy(self):
 		BCopy = Board()
@@ -178,20 +152,20 @@ class Board(object):
 		return BCopy
 
 	def summary(self):
-		"""returns a Grid2D where grid[r][c] is a single number where the least 4 bits are WESN. that is, north wall is w&0x1"""
+		"""returns a Grid2D where grid[(r,c)] is a single number where the least 4 bits are WESN. that is, north wall is w&0x1"""
 		ret = Grid2D(Board.SIZE, Board.SIZE)
 		for r in range(Board.SIZE):
 			for c in range(Board.SIZE):
 				n = 0
-				if self.grid[r][c].has_wall(Node.NORTH):
+				if self.grid[(r,c)].has_wall(Node.NORTH):
 					n |= 0x1
-				if self.grid[r][c].has_wall(Node.SOUTH):
+				if self.grid[(r,c)].has_wall(Node.SOUTH):
 					n |= 0x2
-				if self.grid[r][c].has_wall(Node.EAST):
+				if self.grid[(r,c)].has_wall(Node.EAST):
 					n |= 0x4
-				if self.grid[r][c].has_wall(Node.WEST):
+				if self.grid[(r,c)].has_wall(Node.WEST):
 					n |= 0x8
-				ret[r][c] = n
+				ret[(r,c)] = n
 		return ret
 
 	def add_wall(self, wall):
@@ -200,15 +174,15 @@ class Board(object):
 		It is assumed this wall is valid by the rules of the game.. no checks are performed"""
 		(wr, wc) = wall.position # topleft position (min row and min col)
 		if wall.orientation == Wall.VERTICAL:
-			self.grid[ wr ][ wc ].wall(wall, Node.EAST)
-			self.grid[wr+1][ wc ].wall(wall, Node.EAST)
-			self.grid[ wr ][wc+1].wall(wall, Node.WEST)
-			self.grid[wr+1][wc+1].wall(wall, Node.WEST)
+			self.grid[ wr ,  wc ].wall(wall, Node.EAST)
+			self.grid[wr+1,  wc ].wall(wall, Node.EAST)
+			self.grid[ wr , wc+1].wall(wall, Node.WEST)
+			self.grid[wr+1, wc+1].wall(wall, Node.WEST)
 		elif wall.orientation == Wall.HORIZONTAL:
-			self.grid[ wr ][ wc ].wall(wall, Node.SOUTH)
-			self.grid[ wr ][wc+1].wall(wall, Node.SOUTH)
-			self.grid[wr+1][ wc ].wall(wall, Node.NORTH)
-			self.grid[wr+1][wc+1].wall(wall, Node.NORTH)
+			self.grid[ wr ,  wc ].wall(wall, Node.SOUTH)
+			self.grid[ wr , wc+1].wall(wall, Node.SOUTH)
+			self.grid[wr+1,  wc ].wall(wall, Node.NORTH)
+			self.grid[wr+1, wc+1].wall(wall, Node.NORTH)
 		self.walls.append(wall)
 
 	def remove_wall(self, wall):
@@ -217,15 +191,15 @@ class Board(object):
 		It is assumed this wall already has been played.. no checks are performed"""
 		(wr, wc) = wall.position # topleft position (min row and min col)
 		if wall.orientation == Wall.VERTICAL:
-			self.grid[ wr ][ wc ].unwall(Node.EAST)
-			self.grid[wr+1][ wc ].unwall(Node.EAST)
-			self.grid[ wr ][wc+1].unwall(Node.WEST)
-			self.grid[wr+1][wc+1].unwall(Node.WEST)
+			self.grid[ wr ,  wc ].unwall(Node.EAST)
+			self.grid[wr+1,  wc ].unwall(Node.EAST)
+			self.grid[ wr , wc+1].unwall(Node.WEST)
+			self.grid[wr+1, wc+1].unwall(Node.WEST)
 		elif wall.orientation == Wall.HORIZONTAL:
-			self.grid[ wr ][ wc ].unwall(Node.SOUTH)
-			self.grid[ wr ][wc+1].unwall(Node.SOUTH)
-			self.grid[wr+1][ wc ].unwall(Node.NORTH)
-			self.grid[wr+1][wc+1].unwall(Node.NORTH)
+			self.grid[ wr ,  wc ].unwall(Node.SOUTH)
+			self.grid[ wr , wc+1].unwall(Node.SOUTH)
+			self.grid[wr+1,  wc ].unwall(Node.NORTH)
+			self.grid[wr+1, wc+1].unwall(Node.NORTH)
 		self.walls.remove(wall)
 
 	def path(self, start, goals):
@@ -268,13 +242,13 @@ class Board(object):
 		if abs(ra-rb) + abs(ca-cb) != 1:
 			return False
 		elif ra > rb:
-			return not (self.grid[ra][ca].has_wall(Node.NORTH))
+			return not (self.grid[(ra,ca)].has_wall(Node.NORTH))
 		elif ra < rb:
-			return not (self.grid[ra][ca].has_wall(Node.SOUTH))
+			return not (self.grid[(ra,ca)].has_wall(Node.SOUTH))
 		elif ca > cb:
-			return not (self.grid[ra][ca].has_wall(Node.WEST))
+			return not (self.grid[(ra,ca)].has_wall(Node.WEST))
 		elif ca < cb:
-			return not (self.grid[ra][ca].has_wall(Node.EAST))
+			return not (self.grid[(ra,ca)].has_wall(Node.EAST))
 
 	@classmethod
 	def __flip_direction(cls, direction):
