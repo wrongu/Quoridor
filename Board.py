@@ -264,8 +264,5 @@ class Board(object):
 			(Node.EAST , (r, c+1) if c+1 < Board.SIZE else None),
 			(Node.WEST , (r, c-1) if c-1 >= 0 else None)
 		]
-		retlist = []
-		for direction, npos in neighbors:
-			if npos and not self.grid[pos].has_wall(direction):
-				retlist.append(npos)
-		return retlist
+		node = self.grid[pos]
+		return [npos for (direction, npos) in neighbors if npos and not node.has_wall(direction)]
