@@ -19,3 +19,5 @@ if __name__ == '__main__':
 	fname ='tests/stats/AIProfile.dat'
 	cProfile.run('ai.process(%d)' % depth, fname)
 	stats = pstats.Stats(fname)
+	stats.sort_stats('tottime')
+	stats.print_stats()
