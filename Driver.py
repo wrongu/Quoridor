@@ -35,25 +35,25 @@ def board_string(state_dict):
 					if players.has_key((r-1,c-1)):
 						st = "%s%c%s" % (st[0:12], players[(r-1,c-1)][0][0], st[13:])
 					# check 4 walls:
-					if board[r-1][c-1] & 0x1:
+					if board[r-1,c-1] & 0x1:
 						# north wall
 						st = "#####" + st[5:]
-					if board[r-1][c-1] & 0x2:
+					if board[r-1,c-1] & 0x2:
 						# south wall
 						st = st[0:20] + "#####"
-					if board[r-1][c-1] & 0x4:
+					if board[r-1,c-1] & 0x4:
 						# east wall
 						st = "".join([st[(5*i):(5*i+4)]+"#" for i in range(5)])
-					if board[r-1][c-1] & 0x8:
+					if board[r-1,c-1] & 0x8:
 						# west wall
 						st = "".join(["#"+st[(5*i+1):(5*i+5)] for i in range(5)])
 					st_cells[(r,c)] = st
 
 	st_final = ""
-	for cr in range(5*len(st_cells)):
+	for cr in range(5*(Board.SIZE+1)):
 		ri = (cr / 5)
 		sub_r = cr - 5*ri
-		for cc in range(5*len(st_cells)):
+		for cc in range(5*(Board.SIZE+1)):
 			ci = (cc / 5)
 			sub_c = cc - 5*ci
 			st_final += st_cells[(ri,ci)][5*sub_r + sub_c]
