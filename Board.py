@@ -139,14 +139,19 @@ class Grid2D(object):
 class Board(object):
 
 	SIZE = 9
-	__slots__ = ('grid', 'walls')
+	__slots__ = ('grid', 'walls', '__neighbors')
 
 	def __init__(self):
-		self.grid = Grid2D(Board.SIZE,Board.SIZE)
 		self.walls = []
+		self.grid = Grid2D(Board.SIZE,Board.SIZE)
 		for r in range(Board.SIZE):
 			for c in range(Board.SIZE):
 				self.grid[r,c] = Node((r,c))
+		self.__neighbors = Grid2D(Board.SIZE,Board.SIZE)
+		# precompute neighbors
+		for r in range(Board.SIZE):
+			for c in range(Board.SIZE):
+				self.__neighbors[r,c] = self.__compute_neighbors((r,c))
 
 	def copy(self):
 		BCopy = Board()
@@ -178,6 +183,7 @@ class Board(object):
 
 		It is assumed this wall is valid by the rules of the game.. no checks are performed"""
 		(wr, wc) = wall.position # topleft position (min row and min col)
+		# flag nodes' walls
 		if wall.orientation == Wall.VERTICAL:
 			self.grid[ wr ,  wc ].wall(Node.EAST)
 			self.grid[wr+1,  wc ].wall(Node.EAST)
@@ -188,6 +194,12 @@ class Board(object):
 			self.grid[ wr , wc+1].wall(Node.SOUTH)
 			self.grid[wr+1,  wc ].wall(Node.NORTH)
 			self.grid[wr+1, wc+1].wall(Node.NORTH)
+		# update neighbors
+		self.__neighbors[ wr ,  wc ] = self.__compute_neighbors(( wr ,  wc ))
+		self.__neighbors[wr+1,  wc ] = self.__compute_neighbors((wr+1,  wc ))
+		self.__neighbors[ wr , wc+1] = self.__compute_neighbors(( wr , wc+1))
+		self.__neighbors[wr+1, wc+1] = self.__compute_neighbors((wr+1, wc+1))
+		# add wall to list of wall objects
 		self.walls.append(wall)
 
 	def remove_wall(self, wall):
@@ -205,6 +217,12 @@ class Board(object):
 			self.grid[ wr , wc+1].unwall(Node.SOUTH)
 			self.grid[wr+1,  wc ].unwall(Node.NORTH)
 			self.grid[wr+1, wc+1].unwall(Node.NORTH)
+		# update neighbors
+		self.__neighbors[ wr ,  wc ] = self.__compute_neighbors(( wr ,  wc ))
+		self.__neighbors[wr+1,  wc ] = self.__compute_neighbors((wr+1,  wc ))
+		self.__neighbors[ wr , wc+1] = self.__compute_neighbors(( wr , wc+1))
+		self.__neighbors[wr+1, wc+1] = self.__compute_neighbors((wr+1, wc+1))
+		# remove wall from list of wall objects
 		self.walls.remove(wall)
 
 	def path(self, start, goals):
@@ -255,7 +273,7 @@ class Board(object):
 		elif ca < cb:
 			return not (self.grid[(ra,ca)].has_wall(Node.EAST))
 
-	def neighbors(self, pos):
+	def __compute_neighbors(self, pos):
 		"""given a tuple position or Node, return the tuple positions next to and accessible by that position"""
 		(r,c) = pos
 		neighbors = [
@@ -266,3 +284,6 @@ class Board(object):
 		]
 		node = self.grid[pos]
 		return [npos for (direction, npos) in neighbors if npos and not node.has_wall(direction)]
+
+	def neighbors(self, pos):
+		return self.__neighbors[pos]
