@@ -141,11 +141,12 @@ class Grid2D(object):
 class Board(object):
 
 	SIZE = 9
-	__slots__ = ('__grid', '__walls', '__neighbors')
+	__slots__ = ('__grid', '__walls', '__neighbors', '__hash')
 
 	def __init__(self):
 		self.__walls = []
 		self.__grid = Grid2D(Board.SIZE,Board.SIZE)
+		self.__hash = (0L, 0L) # 2 64-bit numbers with bits as wall flags. (H, V)
 		for r in range(Board.SIZE):
 			for c in range(Board.SIZE):
 				self.__grid[r,c] = Node((r,c))
@@ -154,6 +155,9 @@ class Board(object):
 		for r in range(Board.SIZE):
 			for c in range(Board.SIZE):
 				self.__neighbors[r,c] = self.__compute_neighbors((r,c))
+
+	def hash(self):
+		return self.__hash
 
 	def copy(self):
 		BCopy = Board()
@@ -202,7 +206,11 @@ class Board(object):
 		self.__neighbors[ wr , wc+1] = self.__compute_neighbors(( wr , wc+1))
 		self.__neighbors[wr+1, wc+1] = self.__compute_neighbors((wr+1, wc+1))
 		# add wall to list of wall objects
+
 		self.__walls.append(wall)
+		# update hash
+		i = 0 if wall.orientation == Wall.HORIZONTAL else 1
+		self.__hash[i] |= 1L << (wr*(Board.SIZE-1) + wc)
 
 	def remove_wall(self, wall):
 		"""remove the given Wall object from the board, updating affected Nodes
@@ -226,6 +234,9 @@ class Board(object):
 		self.__neighbors[wr+1, wc+1] = self.__compute_neighbors((wr+1, wc+1))
 		# remove wall from list of wall objects
 		self.__walls.remove(wall)
+		# update hash
+		i = 0 if wall.orientation == Wall.HORIZONTAL else 1
+		self.__hash[i] &= ~(1L << (wr*(Board.SIZE-1) + wc))
 
 	def path(self, start, goals):
 		"""given start position (row,col) and goals [(row,col),...], returns a list of shortest-path steps
