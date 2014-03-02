@@ -141,14 +141,14 @@ class Grid2D(object):
 class Board(object):
 
 	SIZE = 9
-	__slots__ = ('grid', 'walls', '__neighbors')
+	__slots__ = ('__grid', '__walls', '__neighbors')
 
 	def __init__(self):
-		self.walls = []
-		self.grid = Grid2D(Board.SIZE,Board.SIZE)
+		self.__walls = []
+		self.__grid = Grid2D(Board.SIZE,Board.SIZE)
 		for r in range(Board.SIZE):
 			for c in range(Board.SIZE):
-				self.grid[r,c] = Node((r,c))
+				self.__grid[r,c] = Node((r,c))
 		self.__neighbors = Grid2D(Board.SIZE,Board.SIZE)
 		# precompute neighbors
 		for r in range(Board.SIZE):
@@ -159,7 +159,7 @@ class Board(object):
 		BCopy = Board()
 		# should be safe to add all the same objects since walls are never manipulated after creation
 		# TODO - strict singleton?
-		for w in self.walls:
+		for w in self.__walls:
 			BCopy.add_wall(w)
 		return BCopy
 
@@ -169,13 +169,13 @@ class Board(object):
 		for r in range(Board.SIZE):
 			for c in range(Board.SIZE):
 				n = 0
-				if self.grid[(r,c)].has_wall(Node.NORTH):
+				if self.__grid[(r,c)].has_wall(Node.NORTH):
 					n |= 0x1
-				if self.grid[(r,c)].has_wall(Node.SOUTH):
+				if self.__grid[(r,c)].has_wall(Node.SOUTH):
 					n |= 0x2
-				if self.grid[(r,c)].has_wall(Node.EAST):
+				if self.__grid[(r,c)].has_wall(Node.EAST):
 					n |= 0x4
-				if self.grid[(r,c)].has_wall(Node.WEST):
+				if self.__grid[(r,c)].has_wall(Node.WEST):
 					n |= 0x8
 				ret[(r,c)] = n
 		return ret
@@ -187,22 +187,22 @@ class Board(object):
 		(wr, wc) = wall.position # topleft position (min row and min col)
 		# flag nodes' walls
 		if wall.orientation == Wall.VERTICAL:
-			self.grid[ wr ,  wc ].wall(Node.EAST)
-			self.grid[wr+1,  wc ].wall(Node.EAST)
-			self.grid[ wr , wc+1].wall(Node.WEST)
-			self.grid[wr+1, wc+1].wall(Node.WEST)
+			self.__grid[ wr ,  wc ].wall(Node.EAST)
+			self.__grid[wr+1,  wc ].wall(Node.EAST)
+			self.__grid[ wr , wc+1].wall(Node.WEST)
+			self.__grid[wr+1, wc+1].wall(Node.WEST)
 		elif wall.orientation == Wall.HORIZONTAL:
-			self.grid[ wr ,  wc ].wall(Node.SOUTH)
-			self.grid[ wr , wc+1].wall(Node.SOUTH)
-			self.grid[wr+1,  wc ].wall(Node.NORTH)
-			self.grid[wr+1, wc+1].wall(Node.NORTH)
+			self.__grid[ wr ,  wc ].wall(Node.SOUTH)
+			self.__grid[ wr , wc+1].wall(Node.SOUTH)
+			self.__grid[wr+1,  wc ].wall(Node.NORTH)
+			self.__grid[wr+1, wc+1].wall(Node.NORTH)
 		# update neighbors
 		self.__neighbors[ wr ,  wc ] = self.__compute_neighbors(( wr ,  wc ))
 		self.__neighbors[wr+1,  wc ] = self.__compute_neighbors((wr+1,  wc ))
 		self.__neighbors[ wr , wc+1] = self.__compute_neighbors(( wr , wc+1))
 		self.__neighbors[wr+1, wc+1] = self.__compute_neighbors((wr+1, wc+1))
 		# add wall to list of wall objects
-		self.walls.append(wall)
+		self.__walls.append(wall)
 
 	def remove_wall(self, wall):
 		"""remove the given Wall object from the board, updating affected Nodes
@@ -210,22 +210,22 @@ class Board(object):
 		It is assumed this wall already has been played.. no checks are performed"""
 		(wr, wc) = wall.position # topleft position (min row and min col)
 		if wall.orientation == Wall.VERTICAL:
-			self.grid[ wr ,  wc ].unwall(Node.EAST)
-			self.grid[wr+1,  wc ].unwall(Node.EAST)
-			self.grid[ wr , wc+1].unwall(Node.WEST)
-			self.grid[wr+1, wc+1].unwall(Node.WEST)
+			self.__grid[ wr ,  wc ].unwall(Node.EAST)
+			self.__grid[wr+1,  wc ].unwall(Node.EAST)
+			self.__grid[ wr , wc+1].unwall(Node.WEST)
+			self.__grid[wr+1, wc+1].unwall(Node.WEST)
 		elif wall.orientation == Wall.HORIZONTAL:
-			self.grid[ wr ,  wc ].unwall(Node.SOUTH)
-			self.grid[ wr , wc+1].unwall(Node.SOUTH)
-			self.grid[wr+1,  wc ].unwall(Node.NORTH)
-			self.grid[wr+1, wc+1].unwall(Node.NORTH)
+			self.__grid[ wr ,  wc ].unwall(Node.SOUTH)
+			self.__grid[ wr , wc+1].unwall(Node.SOUTH)
+			self.__grid[wr+1,  wc ].unwall(Node.NORTH)
+			self.__grid[wr+1, wc+1].unwall(Node.NORTH)
 		# update neighbors
 		self.__neighbors[ wr ,  wc ] = self.__compute_neighbors(( wr ,  wc ))
 		self.__neighbors[wr+1,  wc ] = self.__compute_neighbors((wr+1,  wc ))
 		self.__neighbors[ wr , wc+1] = self.__compute_neighbors(( wr , wc+1))
 		self.__neighbors[wr+1, wc+1] = self.__compute_neighbors((wr+1, wc+1))
 		# remove wall from list of wall objects
-		self.walls.remove(wall)
+		self.__walls.remove(wall)
 
 	def path(self, start, goals):
 		"""given start position (row,col) and goals [(row,col),...], returns a list of shortest-path steps
@@ -265,13 +265,13 @@ class Board(object):
 		if abs(ra-rb) + abs(ca-cb) != 1:
 			return False
 		elif ra > rb:
-			return not (self.grid[(ra,ca)].has_wall(Node.NORTH))
+			return not (self.__grid[(ra,ca)].has_wall(Node.NORTH))
 		elif ra < rb:
-			return not (self.grid[(ra,ca)].has_wall(Node.SOUTH))
+			return not (self.__grid[(ra,ca)].has_wall(Node.SOUTH))
 		elif ca > cb:
-			return not (self.grid[(ra,ca)].has_wall(Node.WEST))
+			return not (self.__grid[(ra,ca)].has_wall(Node.WEST))
 		elif ca < cb:
-			return not (self.grid[(ra,ca)].has_wall(Node.EAST))
+			return not (self.__grid[(ra,ca)].has_wall(Node.EAST))
 
 	def __compute_neighbors(self, pos):
 		"""given a tuple position or Node, return the tuple positions next to and accessible by that position"""
@@ -282,7 +282,7 @@ class Board(object):
 			(Node.EAST , (r, c+1) if c+1 < Board.SIZE else None),
 			(Node.WEST , (r, c-1) if c-1 >= 0 else None)
 		]
-		node = self.grid[pos]
+		node = self.__grid[pos]
 		return [npos for (direction, npos) in neighbors if npos and not node.has_wall(direction)]
 
 	def neighbors(self, pos):
