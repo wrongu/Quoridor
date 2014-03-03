@@ -114,7 +114,7 @@ if __name__ == '__main__':
 		except StateError as se:
 			print "STATE ERROR", se
 		except KeyboardInterrupt as ki:
-			if ai.is_processing():
+			if ai and ai.is_processing():
 				ai.kill()
 			else:
 				i = raw_input("\nreally quit? (y/N)")
