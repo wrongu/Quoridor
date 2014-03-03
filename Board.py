@@ -6,6 +6,7 @@
 # Date: February 2014
 
 from collections import deque
+from Cache import cache
 
 class Node(object):
 	""" A Node is a square on the SIZE x SIZE grid references to up to 4 adjacent walls.
@@ -146,7 +147,7 @@ class Board(object):
 	def __init__(self):
 		self.__walls = []
 		self.__grid = Grid2D(Board.SIZE,Board.SIZE)
-		self.__hash = (0L, 0L) # 2 64-bit numbers with bits as wall flags. (H, V)
+		self.__hash = [0L, 0L] # 2 64-bit numbers with bits as wall flags. (H, V)
 		for r in range(Board.SIZE):
 			for c in range(Board.SIZE):
 				self.__grid[r,c] = Node((r,c))
@@ -157,7 +158,8 @@ class Board(object):
 				self.__neighbors[r,c] = self.__compute_neighbors((r,c))
 
 	def hash(self):
-		return self.__hash
+		# convert mutable list into immutable tuple
+		return tuple(self.__hash)
 
 	def copy(self):
 		BCopy = Board()
@@ -238,24 +240,28 @@ class Board(object):
 		i = 0 if wall.orientation == Wall.HORIZONTAL else 1
 		self.__hash[i] &= ~(1L << (wr*(Board.SIZE-1) + wc))
 
-	def path(self, start, goals):
-		"""given start position (row,col) and goals [(row,col),...], returns a list of shortest-path steps
-		[start, x, y, ..., g] where g is in goals. If no path exists, returns []"""
+	@cache(lambda k,a: (k, a[0][0]))
+	def __bfs_tree(self, goals):
+		"""create a bfs tree on the whole board based on the iterable of goal tuples
+
+		The result is cached"""
 		q = deque(goals, Board.SIZE * Board.SIZE) # a queue of fringe positions
 		steps = Grid2D(Board.SIZE, Board.SIZE) # grid[pos] contains the tuple (next_r, next_c) of the next path position from pos
-		sentinel = (-1,-1)
-		for g in goals:
-			steps[g] = sentinel # mark end
 		while len(q) > 0:
 			fringe = q.pop()
-			# check if we made it
-			if fringe == start:
-				break
 			for n in self.neighbors(fringe):
 				# step to neighbors if not yet visited
 				if steps[n] is None:
 					steps[n] = fringe
 					q.append(n)
+		for g in goals:
+			steps[g] = None
+		return steps
+
+	def path(self, start, goals):
+		"""given start position (row,col) and goals [(row,col),...], returns a list of shortest-path steps
+		[start, x, y, ..., g] where g is in goals. If no path exists, returns []"""
+		steps = self.__bfs_tree(goals)
 		# iff path was found, steps[start] will have a value
 		if steps[start] is None:
 			return []
@@ -263,7 +269,7 @@ class Board(object):
 			# follow the trail left in 'steps' from start to goal
 			path = [start]
 			next = steps[path[-1]]
-			while next is not sentinel:
+			while next is not None:
 				path.append(next)
 				next = steps[path[-1]]
 			return path
