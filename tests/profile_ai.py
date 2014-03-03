@@ -1,7 +1,7 @@
 # AI profiler
 import cProfile, pstats
-from Quoridor.Quoridor import Quoridor
-from Quoridor.AlphaBetaAI import AlphaBetaAI2P as AI
+from Quoridor import Quoridor
+from AlphaBetaAI import AlphaBetaAI2P as AI
 
 def newgame(p1="1P", p2="2P"):
 	# create the game object
