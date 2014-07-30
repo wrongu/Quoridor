@@ -3,7 +3,6 @@
 # This file holds the Board class for the 9x9 board
 #
 # Author: wrongu
-# Date: February 2014
 
 from collections import deque
 from Cache import cache
@@ -17,11 +16,13 @@ class Node(object):
 	EAST  = 2 # col+
 	WEST  = 3 # col-
 
-	__slots__ =  ('walls', 'position')
+	__slots__ =  ('walls', 'position', '__neighbors', '__neighbors_cache')
 
 	def __init__(self, pos):
-		self.walls = 0 # least-significant 4 bits correspond to NSEW
+		self.walls = 0 # least-significant 4 bits correspond to NSEW (i.e. byte 0000WESN)
 		self.position = pos
+		self.__neighbors = [None] * 4 # this is updated as walls are added or removed
+		self.__neighbors_cache = [None] * 4 # this is blind to walls
 
 	def __eq__(self, other):
 		return isinstance(other, Node) and other.position == self.position
@@ -29,13 +30,22 @@ class Node(object):
 	def wall(self, direction):
 		"""Record the wall in the given direction"""
 		self.walls |= 1 << direction
+		self.__neighbors[direction] = None
 
 	def unwall(self, direction):
 		"""remove the wall (if it exists) indicated by the given direction"""
 		self.walls &= ~(1 << direction)
+		self.__neighbors[direction] = self.__neighbors_cache[direction]
 
 	def has_wall(self, direction):
 		return self.walls & (1 << direction)
+
+	def init_neighbors(self, N, S, E, W):
+		self.__neighbors_cache = [N, S, E, W]
+		self.__neighbors = [N, S, E, W]
+
+	def neighbors(self):
+		return self.__neighbors
 
 	@classmethod
 	def notate(cls, row_col):
@@ -142,7 +152,7 @@ class Grid2D(object):
 class Board(object):
 
 	SIZE = 9
-	__slots__ = ('__grid', '__walls', '__neighbors', '__hash')
+	__slots__ = ('__grid', '__walls', '__hash')
 
 	def __init__(self):
 		self.__walls = []
@@ -151,11 +161,13 @@ class Board(object):
 		for r in range(Board.SIZE):
 			for c in range(Board.SIZE):
 				self.__grid[r,c] = Node((r,c))
-		self.__neighbors = Grid2D(Board.SIZE,Board.SIZE)
-		# precompute neighbors
+		# initialize nodes' neighbors
+		on_board = lambda (x,y): x >=0 and y >=0 and x < Board.SIZE and y < Board.SIZE
 		for r in range(Board.SIZE):
 			for c in range(Board.SIZE):
-				self.__neighbors[r,c] = self.__compute_neighbors((r,c))
+				# note that NSEW order here does matter	
+				adj = [(r-1,c),(r+1,c),(r,c+1),(r,c-1)]
+				self.__grid[r,c].init_neighbors(*[self.__grid[n] if on_board(n) else None for n in adj])
 
 	def hash(self):
 		# convert mutable list into immutable tuple
@@ -174,16 +186,7 @@ class Board(object):
 		ret = Grid2D(Board.SIZE, Board.SIZE)
 		for r in range(Board.SIZE):
 			for c in range(Board.SIZE):
-				n = 0
-				if self.__grid[(r,c)].has_wall(Node.NORTH):
-					n |= 0x1
-				if self.__grid[(r,c)].has_wall(Node.SOUTH):
-					n |= 0x2
-				if self.__grid[(r,c)].has_wall(Node.EAST):
-					n |= 0x4
-				if self.__grid[(r,c)].has_wall(Node.WEST):
-					n |= 0x8
-				ret[(r,c)] = n
+				ret[r,c] = self.__grid[r,c].walls
 		return ret
 
 	def add_wall(self, wall):
@@ -202,16 +205,10 @@ class Board(object):
 			self.__grid[ wr , wc+1].wall(Node.SOUTH)
 			self.__grid[wr+1,  wc ].wall(Node.NORTH)
 			self.__grid[wr+1, wc+1].wall(Node.NORTH)
-		# update neighbors
-		self.__neighbors[ wr ,  wc ] = self.__compute_neighbors(( wr ,  wc ))
-		self.__neighbors[wr+1,  wc ] = self.__compute_neighbors((wr+1,  wc ))
-		self.__neighbors[ wr , wc+1] = self.__compute_neighbors(( wr , wc+1))
-		self.__neighbors[wr+1, wc+1] = self.__compute_neighbors((wr+1, wc+1))
 		# add wall to list of wall objects
-
 		self.__walls.append(wall)
 		# update hash
-		i = 0 if wall.orientation == Wall.HORIZONTAL else 1
+		i = int(wall.orientation == Wall.VERTICAL)
 		self.__hash[i] |= 1L << (wr*(Board.SIZE-1) + wc)
 
 	def remove_wall(self, wall):
@@ -229,15 +226,10 @@ class Board(object):
 			self.__grid[ wr , wc+1].unwall(Node.SOUTH)
 			self.__grid[wr+1,  wc ].unwall(Node.NORTH)
 			self.__grid[wr+1, wc+1].unwall(Node.NORTH)
-		# update neighbors
-		self.__neighbors[ wr ,  wc ] = self.__compute_neighbors(( wr ,  wc ))
-		self.__neighbors[wr+1,  wc ] = self.__compute_neighbors((wr+1,  wc ))
-		self.__neighbors[ wr , wc+1] = self.__compute_neighbors(( wr , wc+1))
-		self.__neighbors[wr+1, wc+1] = self.__compute_neighbors((wr+1, wc+1))
 		# remove wall from list of wall objects
 		self.__walls.remove(wall)
 		# update hash
-		i = 0 if wall.orientation == Wall.HORIZONTAL else 1
+		i = int(wall.orientation == Wall.VERTICAL)
 		self.__hash[i] &= ~(1L << (wr*(Board.SIZE-1) + wc))
 
 	@cache(lambda k,a: (k, a[0][0]))
@@ -303,4 +295,6 @@ class Board(object):
 		return [npos for (direction, npos) in neighbors if npos and not node.has_wall(direction)]
 
 	def neighbors(self, pos):
-		return self.__neighbors[pos]
+		for n in self.__grid[pos].neighbors():
+			if n != None:
+				yield n.position
