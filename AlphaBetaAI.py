@@ -3,9 +3,10 @@ import time
 
 class AlphaBetaAI2P(object):
 
-	def __init__(self, qgame, pid):
+	def __init__(self, qgame, pid, wall_weight=1.0):
 		self.player = pid
 		self.game = qgame
+		self.wall_weight = wall_weight
 		self.processing = False
 		self.leaves = 0
 		self.thread = None
@@ -22,15 +23,12 @@ class AlphaBetaAI2P(object):
 		"""Start processing for turn in a separate thread"""
 		# processing acts as a lock
 		if not self.processing:
-			# self.thread = Thread(target=self.__alpha_beta_top, args = (self.game.copy(), self.player, depth, callback))
-			# self.thread.daemon = True
-			# self.thread.start()
-			self.__alpha_beta_top(self.game.copy(), self.player, depth, callback)
+			self.__alpha_beta_top(self.game.copy(), depth, callback)
 		else:
 			print "AI already in use"
 
 	def __eval(self, state):
-		score = 0
+		score = 0.0
 		# game-over is kind of a big deal
 		if state.game_is_over():
 			score += (50 if state.get_current_pid() == self.player else -50)
@@ -40,11 +38,10 @@ class AlphaBetaAI2P(object):
 		# similarly, state is better if the best of other players is doing poorly
 		score += min([len(state.get_board().path(p.position(), p.goals())) for p in state.others(self.player)])
 		# hoarding walls is good, right?
-		# TODO weight walls and paths separately
-		score += pl.num_walls()
+		score += self.wall_weight * pl.num_walls()
 		return score
 
-	def __alpha_beta_top(self, state_copy, player, depthlimit, callback):
+	def __alpha_beta_top(self, state_copy, depthlimit, callback):
 		self.processing = True
 		self.leaves = 0
 		tstart = time.time()

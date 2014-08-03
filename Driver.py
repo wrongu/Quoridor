@@ -93,7 +93,7 @@ if __name__ == '__main__':
 	while QGame.state != State.OVER:
 		try:
 			move = raw_input()
-			cur_play = QGame.get_current_pid()
+			cur_player_id = QGame.get_current_pid()
 			# special processing
 			if move != '':
 				if move[0:2] == 'ai':
@@ -101,14 +101,14 @@ if __name__ == '__main__':
 						print "AI already in use..?"
 					else:
 						print "USING ALPHA-BETA AI"
-						ai = AI(QGame, cur_play)
+						ai = AI(QGame, cur_player_id)
 						depth = int(move[2:].strip())
-						ai.process(depth, lambda t : turn_update(cur_play, t))
+						ai.process(depth, lambda t : turn_update(cur_player_id, t))
 				elif move[0] == 'q':
 					raise KeyboardInterrupt()
 				else:
 					# treat input as a normal move
-					turn_update(cur_play, move)
+					turn_update(cur_player_id, move)
 		except IllegalMove as im:
 			print "ILLEGAL MOVE", im
 		except StateError as se:
